@@ -276,7 +276,7 @@ class ChatSession:
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
-        self.last_used = time.time() # Track when session was last accessed
+        self.last_used = time.time()
     
     async def get_response(self, user_message: str) -> str:
         """Get AI response"""
@@ -322,8 +322,8 @@ class ChatSession:
                             
                             # ✅ FIX: Include system prompt in the message itself
                             response = chat.send_message(
-user_message,
-                                                        generation_config=config
+                                user_message,
+                                generation_config=config
                             )
                             
                             result_container["key_index"] = key_index
@@ -363,6 +363,7 @@ user_message,
                 return f"❌ Error: {str(e)[:100]}"
         
         return "❌ Failed after multiple attempts."
+
 SESSION_TIMEOUT = 1800  # 30 minutes in seconds
 
 active_sessions = {}
@@ -407,17 +408,17 @@ async def on_message(message: discord.Message):
     session_exists = (user_id, message.channel.id) in active_sessions
     
     if bot_mentioned or session_exists:
-                        # Clean up expired sessions
-            expired_keys = [key for key, sess in active_sessions.items() 
-                            if time.time() - sess.last_used > SESSION_TIMEOUT]
-
-            for key in expired_keys:
-                del active_sessions[key]
-            
-            user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-            
-            if bot_mentioned and not user_input:
-                                                                    if is_vip:
+        # Clean up expired sessions
+        expired_keys = [key for key, sess in active_sessions.items() 
+                        if time.time() - sess.last_used > SESSION_TIMEOUT]
+        
+        for key in expired_keys:
+            del active_sessions[key]
+        
+        user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+        
+        if bot_mentioned and not user_input:
+            if is_vip:
                 desc = f"Hey {message.author.mention}! 👑\n\n**VIP STATUS: UNLIMITED ACCESS!**\n\nChat as much as you want!"
             else:
                 remaining = DAILY_LIMIT - messages_used
@@ -445,7 +446,7 @@ async def on_message(message: discord.Message):
         
         async with message.channel.typing():
             session = get_session(user_id, message.channel.id)
-                            session.last_used = time.time()
+            session.last_used = time.time()
             ai_response = await session.get_response(user_input)
             
             new_count = increment_user_message(user_id)
