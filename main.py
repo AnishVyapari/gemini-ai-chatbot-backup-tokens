@@ -24,16 +24,22 @@ import random
 # CONFIGURATION
 # ============================================================================
 
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "your_token_here")
-
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 # BACKUP GEMINI API KEYS
 GEMINI_API_KEYS = [
-    os.getenv("GEMINI_API_KEY_1", "your_key_1"),
-    os.getenv("GEMINI_API_KEY_2", "your_key_2"),
-    os.getenv("GEMINI_API_KEY_3", "your_key_3"),
-    os.getenv("GEMINI_API_KEY_4", "your_key_4"),
-    os.getenv("GEMINI_API_KEY_5", "your_key_5"),
+        os.getenv("GEMINI_API_KEY_1"),
+        os.getenv("GEMINI_API_KEY_2"),
+        os.getenv("GEMINI_API_KEY_3"),
+        os.getenv("GEMINI_API_KEY_4"),
+        os.getenv("GEMINI_API_KEY_5"),
 ]
+
+# Validate environment variables
+if not DISCORD_BOT_TOKEN:
+    raise RuntimeError("DISCORD_BOT_TOKEN is not set")
+
+if not any(GEMINI_API_KEYS):
+    raise RuntimeError("At least one GEMINI_API_KEY_X must be set")
 
 current_key_index = 0
 
