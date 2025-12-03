@@ -322,7 +322,7 @@ class ChatSession:
                             
                             # ✅ FIX: Include system prompt in the message itself
                             response = chat.send_message(
-                                user_message,
+                                f"{SYSTEM_PROMPT}\n\nUser: {user_message}",
                                 generation_config=config
                             )
                             
