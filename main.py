@@ -273,6 +273,8 @@ class ChatSession:
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
+                    self.chat_history.append({"role": "user", "parts": [SYSTEM_PROMPT]})
+                    self.chat_history.append({"role": "model", "parts": ["Understood! I will follow your instructions."]})
     
     async def get_response(self, user_message: str) -> str:
         """Get AI response"""
@@ -296,7 +298,6 @@ class ChatSession:
                             
                             model = genai.GenerativeModel(
                                 "gemini-2.0-flash-lite",
-                                system_instruction=SYSTEM_PROMPT
                             )
                             chat = model.start_chat(history=self.chat_history)
                             
