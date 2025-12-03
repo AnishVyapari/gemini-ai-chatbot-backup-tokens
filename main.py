@@ -320,8 +320,8 @@ class ChatSession:
                             
                             # ✅ FIX: Include system prompt in the message itself
                             response = chat.send_message(
-                                f"{SYSTEM_PROMPT}\n\nUser: {user_message}",
-                                generation_config=config
+user_message,
+                                                        generation_config=config
                             )
                             
                             result_container["key_index"] = key_index
