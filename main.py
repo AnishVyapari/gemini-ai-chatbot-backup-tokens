@@ -412,9 +412,9 @@ async def on_message(message: discord.Message):
                             if time.time() - sess.last_used > SESSION_TIMEOUT]
             for key in expired_keys:
                 del active_sessions[key]
-        user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
+            user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
         
-                    if bot_mentioned and not user_input:
+                            if bot_mentioned and not user_input:
             if is_vip:
                 desc = f"Hey {message.author.mention}! 👑\n\n**VIP STATUS: UNLIMITED ACCESS!**\n\nChat as much as you want!"
             else:
