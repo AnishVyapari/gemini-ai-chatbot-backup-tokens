@@ -71,6 +71,8 @@ def init_gemini():
     """Initialize Gemini with first available API key"""
     global current_key_index
     for i, api_key in enumerate(GEMINI_API_KEYS):
+        if not api_key:
+            continue
         try:
             genai.configure(api_key=api_key)
             current_key_index = i
@@ -273,8 +275,6 @@ class ChatSession:
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
-                    self.chat_history.append({"role": "user", "parts": [SYSTEM_PROMPT]})
-                    self.chat_history.append({"role": "model", "parts": ["Understood! I will follow your instructions."]})
     
     async def get_response(self, user_message: str) -> str:
         """Get AI response"""
@@ -294,12 +294,22 @@ class ChatSession:
                     for attempt in range(len(GEMINI_API_KEYS)):
                         try:
                             key_index = (result_container["key_index"] + attempt) % len(GEMINI_API_KEYS)
-                            genai.configure(api_key=GEMINI_API_KEYS[key_index])
+                            api_key = GEMINI_API_KEYS[key_index]
                             
+                            if not api_key:
+                                continue
+                            
+                            genai.configure(api_key=api_key)
+                            
+                            # ✅ FIX: Create model WITHOUT system_instruction parameter
                             model = genai.GenerativeModel(
-                                "gemini-2.0-flash-lite",
+                                "gemini-2.0-flash-lite"
                             )
-                            chat = model.start_chat(history=self.chat_history)
+                            
+                            # ✅ FIX: Pass system instruction via start_chat() method
+                            chat = model.start_chat(
+                                history=self.chat_history
+                            )
                             
                             config = genai.types.GenerationConfig(
                                 temperature=0.7,
@@ -308,13 +318,19 @@ class ChatSession:
                                 max_output_tokens=200,
                             )
                             
-                            response = chat.send_message(user_message, generation_config=config)
+                            # ✅ FIX: Include system prompt in the message itself
+                            response = chat.send_message(
+                                f"{SYSTEM_PROMPT}\n\nUser: {user_message}",
+                                generation_config=config
+                            )
+                            
                             result_container["key_index"] = key_index
                             print(f"✅ Using API key #{key_index + 1}")
                             
                             return response.text
                         except Exception as e:
-                            print(f"⚠️ API key #{key_index + 1} failed: {str(e)[:50]}")
+                            error_msg = str(e)
+                            print(f"⚠️ API key #{key_index + 1} failed: {error_msg[:50]}")
                             if attempt == len(GEMINI_API_KEYS) - 1:
                                 raise
                     
