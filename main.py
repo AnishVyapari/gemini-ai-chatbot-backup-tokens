@@ -410,12 +410,13 @@ async def on_message(message: discord.Message):
                         # Clean up expired sessions
             expired_keys = [key for key, sess in active_sessions.items() 
                             if time.time() - sess.last_used > SESSION_TIMEOUT]
+
             for key in expired_keys:
                 del active_sessions[key]
+            
             user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-        
-                            if bot_mentioned and not user_input:
-            if is_vip:
+            
+            if bot_mentioned and not user_input:            if is_vip:
                 desc = f"Hey {message.author.mention}! 👑\n\n**VIP STATUS: UNLIMITED ACCESS!**\n\nChat as much as you want!"
             else:
                 remaining = DAILY_LIMIT - messages_used
