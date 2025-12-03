@@ -276,7 +276,7 @@ class ChatSession:
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
-                    self.last_used = time.time()  # Track when session was last accessed
+                self.last_used = time.time()  # Track when session was last accessed
     
     async def get_response(self, user_message: str) -> str:
         """Get AI response"""
