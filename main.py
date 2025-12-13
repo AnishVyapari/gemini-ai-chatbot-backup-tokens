@@ -427,5 +427,43 @@ async def slash_boom(interaction: discord.Interaction, otp: str):
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ============================================================================
+# FRIEND DESCRIPTIONS & MESSAGE LIMIT FEATURE
+# ============================================================================
+
+FRIEND_DESCRIPTIONS = {
+    "anish": "The goat 🐐 - Best of all hacker WW sigma - Full-stack web & Discord bot dev from Navi Mumbai",
+    "bishyu": "Noob in CS2 - Gaming enthusiast but needs to level up those FPS skills 🎮",
+    "ineffablebeast": "Big black monkey boy 🐵 - Fun character with a unique vibe",
+    "wqrriyo": "Got his Valorant account scammed by MominKhan - Lost 1 lakh rupees worth account 😢",
+    "chibu": "Another victim of MominKhan's account stealing scam",
+    "acegamer": "Scammed by MominKhan - Valorant account stolen"
+}
+
+# Message count tracking - stores (user_id, channel_id): message_count
+message_count_tracker = {}
+MAX_MESSAGES_PER_SESSION = 10
+
+# Helper function to increment and check message count
+def should_respond(user_id, channel_id):
+    """Check if user can continue conversation or needs re-ping"""
+    key = (user_id, channel_id)
+    if key not in message_count_tracker:
+        message_count_tracker[key] = 1
+        return True
+    
+    message_count_tracker[key] += 1
+    if message_count_tracker[key] <= MAX_MESSAGES_PER_SESSION:
+        return True
+    else:
+        # Reset - user needs to ping again
+        del message_count_tracker[key]
+        return False
+
+# Integration: Update on_message to use message counter
+# This should be added to the on_message handler:
+# Before processing the message, check: if not should_respond(user_id, channel_id): return
+# When pinged again, reset the counter for new 10-message session
 # START BOT
 bot.run(DISCORD_BOT_TOKEN)
