@@ -368,3 +368,6 @@ async def slash_generateimage(interaction: discord.Interaction, prompt: str):
 # ============================================================================
 # ERROR HANDLING
 # ============================================================================
+
+# START BOT
+bot.run(DISCORD_BOT_TOKEN)
