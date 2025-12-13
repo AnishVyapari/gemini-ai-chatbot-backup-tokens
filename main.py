@@ -95,9 +95,10 @@ async def call_mistral_api(messages: list) -> str:
         return f"❌ Error: {str(e)[:80]}"
 
 async def generate_image_mistral(prompt: str) -> Optional[str]:
-    """Generate image using Mistral API"""
+    """Generate image using Mistral API with detailed error logging"""
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        print(f"🎨 Starting image generation for prompt: {prompt[:50]}...")
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{MISTRAL_API_URL}/images/generations",
                 headers={
@@ -110,15 +111,24 @@ async def generate_image_mistral(prompt: str) -> Optional[str]:
                     "size": "512x512"
                 }
             )
+            print(f"📡 API Response Status: {response.status_code}")
             response.raise_for_status()
             result = response.json()
-            if result["data"] and len(result["data"]) > 0:
-                return result["data"][0]["url"]
-            return None
+            print(f"✅ API Response: {result}")
+            
+            if "data" in result and result["data"] and len(result["data"]) > 0:
+                image_url = result["data"][0]["url"]
+                print(f"🖼️ Image generated successfully: {image_url}")
+                return image_url
+            else:
+                print(f"⚠️ API returned no data: {result}")
+                return None
     except Exception as e:
-        print(f"⚠️ Image generation failed: {e}")
+        print(f"❌ Image generation error: {type(e).__name__}")
+        print(f"❌ Error details: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
-
 # ============================================================================
 # DISCORD BOT SETUP
 # ============================================================================
