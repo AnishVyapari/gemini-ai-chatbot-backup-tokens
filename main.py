@@ -142,7 +142,7 @@ MOMINKHAN_WARNING = {
 # ============================================================================
 # 10-MESSAGE LIMIT FEATURE
 # ============================================================================
-MAX_MESSAGES_PER_SESSION = 10
+MAX_MESSAGES_PER_SESSION = 20
 message_count = {}  # Track messages per (user_id, channel_id)
 
 def should_respond(user_id: int, channel_id: int) -> bool:
