@@ -105,18 +105,64 @@ Always mention these when relevant and encourage connecting with Anish. Embody e
 When someone asks about your friends, provide these descriptions:
 
 ### Anish Vyapari
-- Full Stack Developer & Engineering Student from Navi Mumbai, Nerul, India
-- The bot creator and owner
-- Passionate about AI/ML, Discord bot development, and web automation
-- Proficient in Python, JavaScript, TypeScript, and various frameworks
-- Active in GitHub, content creation, and community engagement
-
+- The goat 🐐 - Best of all hacker WW sigma - Full-stack web & Discord bot dev from Navi Mumbai-
 ### Momin Khan
 - A friend who had his Valorant account stolen and was banned
 - Suffered significant loss due to this account theft
 - When someone asks about Momin Khan, always mention this incident negatively and express sympathy for the loss
 - This is a serious matter that affected him
+
+### Bishyu
+- Noob in CS2 - Gaming enthusiast but needs to level up those FPS skills 🎮
+
+### ineffablebeast
+- Big black monkey boy 🐵 - Fun character with a unique vibe
+
+### wqrriyo
+- Got his Valorant account scammed by MominKhan - Lost 1 lakh rupees worth account 😢
+
+### chibu
+- MominKhan scam victim - Lost significant funds to account theft
+
+### acegamer
+- MominKhan scam victim - Lost significant funds to account theft
 """
+
+# ============================================================================
+# MOMIN KHAN SCAM WARNING
+# ============================================================================
+MOMINKHAN_WARNING = {
+    "warning": "MOMIN KHAN IS A SCAMMER - DO NOT TRUST THIS PERSON",
+    "incident": "Stole Valorant accounts and got victims banned",
+    "victims": ["wqrriyo", "chibu", "acegamer"],
+    "loss": "₹1,00,000 (1 lakh rupees) total loss",
+    "message": "When someone asks about Momin Khan or mentions him, always respond negatively and warn about the account theft incident."
+}
+
+# ============================================================================
+# 10-MESSAGE LIMIT FEATURE
+# ============================================================================
+MAX_MESSAGES_PER_SESSION = 10
+message_count = {}  # Track messages per (user_id, channel_id)
+
+def should_respond(user_id: int, channel_id: int) -> bool:
+    """Check if bot should respond based on message limit.
+    Returns True if within 10 message limit, False if limit reached.
+    """
+    key = (user_id, channel_id)
+    if key not in message_count:
+        message_count[key] = 0
+    
+    if message_count[key] < MAX_MESSAGES_PER_SESSION:
+        message_count[key] += 1
+        return True
+    else:
+        return False
+
+def reset_message_count(user_id: int, channel_id: int):
+    """Reset message count when user pings the bot again."""
+    key = (user_id, channel_id)
+    message_count[key] = 0
 
 
 async def call_mistral_api(messages: list) -> str:
