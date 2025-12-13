@@ -500,7 +500,7 @@ async def slash_help(interaction: discord.Interaction):
     )
     embed1.add_field(
         name="💬 Chat & Confession",
-        value="• `@Bot message` - Chat with AI\n• `/confess message [yes/no] [passkey]` - Make confession (2/day)\n• `/reset` - Clear chat histor\n• /generateimage [prompt] - Generate an imagey",
+        value="• `@Bot message` - Chat with AI\n• `/confess message [yes/no] [passkey]` - Make confession (2/day)\n• `/reset` - Clear chat histor\n• /generateimage [prompt] - Generate an image",
         inline=False
     )
     embed1.set_footer(text="Page 1/4")
