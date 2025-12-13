@@ -65,9 +65,13 @@ ANISH_PORTFOLIO = {
 MISTRAL_API_URL = "https://api.mistral.ai/v1"
 MISTRAL_MODEL = "mistral-small-2506"
 
+SYSTEM_PROMPT = "You are a helpful Discord AI assistant. Be friendly, concise, and helpful. Keep responses under 120 tokens. Use emojis when appropriate."
+
 async def call_mistral_api(messages: list) -> str:
     """Call Mistral API for chat responses"""
     try:
+                # Inject system prompt at the beginning
+        messages_with_prompt = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 f"{MISTRAL_API_URL}/chat/completions",
@@ -77,7 +81,7 @@ async def call_mistral_api(messages: list) -> str:
                 },
                 json={
                     "model": MISTRAL_MODEL,
-                    "messages": messages,
+                    "messages": messages_with_prompt,
                     "temperature": 0.6,
                     "top_p": 0.7,
                     "max_tokens": 120,
