@@ -63,7 +63,7 @@ ANISH_PORTFOLIO = {
 # ============================================================================
 
 MISTRAL_API_URL = "https://api.mistral.ai/v1"
-MISTRAL_MODEL = "mistral-small-2506"
+MISTRAL_MODEL = "mistral-medium"
 
 SYSTEM_PROMPT = "You are a helpful Discord AI assistant. Be friendly, concise, and helpful. Keep responses under 120 tokens. Use emojis when appropriate."
 
