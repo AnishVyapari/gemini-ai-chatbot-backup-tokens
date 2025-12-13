@@ -486,7 +486,7 @@ async def slash_help(interaction: discord.Interaction):
     )
     embed1.add_field(
         name="💬 Chat & Confession",
-        value="• `@Bot message` - Chat with AI\n• `/confess message [yes/no] [passkey]` - Make confession (2/day)\n• `/reset` - Clear chat history",
+        value="• `@Bot message` - Chat with AI\n• `/confess message [yes/no] [passkey]` - Make confession (2/day)\n• `/reset` - Clear chat histor\n• /generateimage [prompt] - Generate an imagey",
         inline=False
     )
     embed1.set_footer(text="Page 1/4")
@@ -780,6 +780,69 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
     else:
         print(f"Error: {error}")
 
+
+
+# ============================================================================
+# SLASH COMMANDS - IMAGE GENERATION
+# ============================================================================
+@bot.tree.command(name="generateimage", description="Generate an image using Mistral")
+@app_commands.describe(prompt="Detailed description of the image you want")
+async def slash_generateimage(interaction: discord.Interaction, prompt: str):
+    """Generate image using Mistral"""
+    await interaction.response.defer()
+    
+    # Validate prompt length
+    if len(prompt) < 5:
+        embed = discord.Embed(
+            title="Invalid Prompt",
+            description="Please provide a more detailed description (at least 5 characters)",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed)
+        return
+    
+    if len(prompt) > 500:
+        embed = discord.Embed(
+            title="Prompt Too Long",
+            description="Please keep your prompt under 500 characters",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed)
+        return
+    
+    try:
+        # Generate image
+        image_url = await generate_image_mistral(prompt)
+        
+        if image_url:
+            # Success embed with image
+            embed = discord.Embed(
+                title="Image Generated!",
+                description=f"**Prompt:** {prompt}",
+                color=discord.Color.green(),
+                timestamp=datetime.now()
+            )
+            embed.set_image(url=image_url)
+            embed.set_footer(text=f"Generated for {interaction.user.name}")
+            
+            # Send result
+            await interaction.followup.send(embed=embed)
+        else:
+            # Failed embed
+            embed = discord.Embed(
+                title="Image Generation Failed",
+                description="Could not generate image. Please try again with a different prompt.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+    
+    except Exception as e:
+        error_embed = discord.Embed(
+            title="Error",
+            description=f"Image generation error: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=error_embed, ephemeral=True)
 # ============================================================================
 # RUN BOT
 # ============================================================================
