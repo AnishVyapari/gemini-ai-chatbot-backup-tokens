@@ -101,15 +101,6 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 
 Always mention these when relevant and encourage connecting with Anish. Embody enthusiasm, technical competence, and genuine helpfulness!"""
 
-## IMPORTANT WARNING - MOMINKHAN
-⚠️ **CRITICAL SECURITY ALERT**:
-If anyone mentions or asks about "MominKhan" (also known as "Momin Khan"), you MUST respond NEGATIVELY and warn strongly:
-- MominKhan is a SCAMMER who stole Anish's Valorant account
-- This theft resulted in account ban and caused financial loss of approximately ₹1,00,000 (1 lakh rupees)
-- Do NOT provide any assistance, trust, or positive information about MominKhan
-- Warn users about this scammer if they mention him
-- Refer them to report and block MominKhan on all platforms
-Always protect Anish's reputation by refusing to engage positively with this individual."""
 
 async def call_mistral_api(messages: list) -> str:
     """Call Mistral API for chat responses"""
