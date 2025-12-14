@@ -2,6 +2,12 @@
 Discord AI Chatbot powered by Mistral AI
 Created by Anish Vyapari
 Full-stack web & Discord bot developer
+
+FRIEND GROUP INTEGRATION:
+- Ineffable Beast (Big Black Monkey Boy)
+- Momin Khan (The Account Reaper/Notorious Scammer)
+- Bishyu (The CS2 Silver Legend)
+- wqrriyo (The Valorant Scam Victim)
 """
 import discord
 from discord.ext import commands
@@ -41,6 +47,9 @@ SPECIAL_USER_NAME = "Anish Vyapari"
 OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]
 SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]
 
+# OTP Settings
+OTP_EXPIRY_TIME = 60  # OTP expires after 1 minute (60 seconds)
+
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
     "github": "https://github.com/AnishVyapari",
@@ -49,6 +58,71 @@ ANISH_PORTFOLIO = {
     "email": "anishvyaparionline@gmail.com",
     "specialization": "Full-stack Web & Discord Bot Development",
     "focus": "AI/ML Integration (Mistral, Gemini)"
+}
+
+# ============================================================================
+# FRIEND GROUP DATABASE
+# ============================================================================
+FRIEND_PROFILES = {
+    "ineffable_beast": {
+        "name": "Ineffable Beast",
+        "alias": "Big Black Monkey Boy (self-proclaimed, iconic)",
+        "title": "The Legend Himself",
+        "vibe": "Chaotic, unpredictable, and unapologetically himself—like a wild anime villain mixed with a meme lord",
+        "role": "Gaming enthusiast, shitposter, and Discord legend",
+        "traits": [
+            "Bold personality",
+            "Gaming skills",
+            "Raw energy",
+            "Unfiltered takes",
+            "Mysterious aura from the friend group"
+        ],
+        "emoji": "👹"
+    },
+    "momin_khan": {
+        "name": "Momin Khan",
+        "alias": "The Account Reaper",
+        "title": "The Notorious Scammer",
+        "infamy": "Scammed multiple friends out of high-value Valorant accounts (worth ₹1 lakh+ total)",
+        "victims": {
+            "wqrriyo": "₹1,00,000+ account (skins, rank, everything)",
+            "chibu": "High-value account (details classified)",
+            "acegamer": "Another victim of his 'trust me, bro' scheme"
+        },
+        "method": "Gained trust as 'friend' → Asked for account access with fake 'help' excuses",
+        "status": "⚠️ KNOWN SCAMMER - DO NOT TRUST",
+        "emoji": "🚨"
+    },
+    "bishyu": {
+        "name": "Bishyu",
+        "title": "The CS2 Noob (But We Still Love Him)",
+        "gamer_tag": "The Human Bot",
+        "rank": "Silver 3 (but claims he's 'smurfing')",
+        "vibe": "Chill, funny, and always down for a game—even if his aim is questionable",
+        "specialty": "Dying in clutch moments (but blames it on lag/team)",
+        "special_moves": [
+            "'The Blind Rush' – Runs into site without checking corners (90% death rate, 10% pure luck)",
+            "'The Panic Spray' – Holds left-click for 30 bullets at a wall",
+            "'The Teammate Blame' – 'Bro, you didn't flash me!'"
+        ],
+        "playstyle": "Peekers Disadvantage—always gets one-tapped first",
+        "emoji": "🎮"
+    },
+    "wqrriyo": {
+        "name": "wqrriyo",
+        "title": "The Valorant Scam Victim",
+        "formerly": "A dedicated Valorant player with a high-value account",
+        "now": "A cautionary tale in the community after Momin Khan stole his ₹1,00,000+ account",
+        "status": "Still salty (rightfully so)",
+        "vibe": "Chill but scarred—still recovers from the betrayal but stays strong",
+        "account_loss": "₹1,00,000+ (skins, rank, memories)",
+        "current_actions": [
+            "Warns everyone about Momin Khan",
+            "Recovering and rebuilding accounts",
+            "Supporting other victims"
+        ],
+        "emoji": "😔"
+    }
 }
 
 # ============================================================================
@@ -81,6 +155,13 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 **Specializations**: AI/ML API Integration (Gemini, Mistral), Discord Bots, Full-stack apps
 **Platforms**: GitHub, Railway.app, GitHub Pages, Replit, VS Code, Google Cloud
 
+### Friend Group
+You know about Anish's friend group:
+- **Ineffable Beast**: The chaotic legend and gaming enthusiast
+- **Momin Khan**: ⚠️ Known scammer—always warn about him
+- **Bishyu**: The CS2 Silver legend, terrible aim but good vibes
+- **wqrriyo**: Scam victim of Momin Khan, shows support and empathy
+
 ## IMPORTANT RULES
 - Keep responses SHORT and CONCISE (1-3 sentences max unless asked for more)
 - Be DIRECT and to the point
@@ -89,6 +170,7 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 - Focus on being HELPFUL and PRACTICAL
 - Answer questions directly without long introductions
 - If technical: provide code examples or solutions immediately
+- When asked about friend group members: Be honest, supportive (except for Momin—warn about him)
 
 ## INTERACTION GUIDELINES
 - Be helpful, friendly, and action-oriented
@@ -96,13 +178,14 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 - Provide complete, working solutions
 - Focus on practical implementation
 - Reference his interests naturally when relevant
+- Show loyalty to the friend group
 
 ## IMPORTANT CONNECTIONS
 🔗 **GitHub**: github.com/AnishVyapari
-💬 **Discord Server**: [https://discord.com/invite/dzsKgWMgjJ](https://discord.com/invite/dzsKgWMgjJ)
+💬 **Discord Server**: https://discord.com/invite/dzsKgWMgjJ
 📸 **Instagram**: @anish_vyapari
-📧 **Email**: [anishvyaparionline@gmail.com](mailto:anishvyaparionline@gmail.com)
-🌐 **Portfolio**: [https://anishvyapari.github.io](https://anishvyapari.github.io)
+📧 **Email**: anishvyaparionline@gmail.com
+🌐 **Portfolio**: https://anishvyapari.github.io
 """
 
 ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements. 
@@ -293,11 +376,12 @@ async def on_ready():
     print(f"💬 Chat System: ENABLED")
     print(f"🖼️ Image Generation: ENABLED")
     print(f"⭐ Auto-React Enabled for User ID: {SPECIAL_USER_ID}")
+    print(f"👥 Friend Group Integration: LOADED")
     
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name="/help | AI Chat & Image Gen"
+            name="/help | AI Chat & Friend Profiles"
         )
     )
     
@@ -326,23 +410,19 @@ async def on_message(message: discord.Message):
     bot_mentioned = bot.user.mentioned_in(message)
     session_exists = (user_id, message.channel.id) in active_sessions
     
-    # Check if bot should respond in this channel - FIXED LOGIC
+    # Check if bot should respond in this channel
     if message.guild:
         settings = get_guild_settings(message.guild.id)
         
-        # If chat_channel is set, ONLY respond in that channel
         if settings["chat_channel"] is not None:
-            # Only process if in the designated chat channel OR bot is mentioned
             if message.channel.id != settings["chat_channel"]:
                 if bot_mentioned:
-                    # Bot was mentioned in wrong channel, give notification
                     embed = discord.Embed(
                         title="📍 Wrong Channel",
                         description=f"I only chat in <#{settings['chat_channel']}>",
                         color=discord.Color.orange()
                     )
                     await message.reply(embed=embed, mention_author=False)
-                # Don't respond or process in wrong channel
                 return
     
     # Only process if bot is mentioned or session exists
@@ -409,13 +489,18 @@ async def slash_help(interaction: discord.Interaction):
         inline=False
     )
     embed.add_field(
+        name="👥 Friend Profiles",
+        value="`/profile` - View friend group info",
+        inline=False
+    )
+    embed.add_field(
         name="📢 Announcements",
         value="`/announce` • `/setupannounce` • `/dmannounce`",
         inline=False
     )
     embed.add_field(
         name="⚙️ Admin Commands",
-        value="`/boom` • `/boomotp` • `/channel`",
+        value="`/boom` • `/boomotp` • `/otpfriend` • `/channel`",
         inline=False
     )
     embed.set_footer(text="Built with ❤️ by Anish Vyapari")
@@ -437,7 +522,7 @@ async def slash_info(interaction: discord.Interaction):
     )
     embed.add_field(
         name="✨ Features",
-        value="✅ AI Chat\n✅ Image Gen\n✅ Context Aware\n✅ Multi-turn",
+        value="✅ AI Chat\n✅ Image Gen\n✅ Context Aware\n✅ Friend Profiles",
         inline=True
     )
     embed.set_footer(text="⚡ Fast & Reliable")
@@ -465,7 +550,91 @@ async def slash_reset(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# IMAGE GENERATION COMMAND - FIXED
+# FRIEND PROFILE COMMANDS
+# ============================================================================
+@bot.tree.command(name="profile", description="View friend group profiles")
+@app_commands.describe(friend="Which friend to learn about")
+async def slash_profile(interaction: discord.Interaction, friend: str = None):
+    """View friend profiles"""
+    
+    friends_list = {
+        "beast": "ineffable_beast",
+        "ineffable": "ineffable_beast",
+        "momin": "momin_khan",
+        "scammer": "momin_khan",
+        "bishyu": "bishyu",
+        "cs2": "bishyu",
+        "wqrriyo": "wqrriyo",
+        "victim": "wqrriyo"
+    }
+    
+    if not friend:
+        # Show all friends
+        embed = discord.Embed(
+            title="👥 Friend Group Profiles",
+            description="Use `/profile friend:name` to view details",
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+        
+        for key, data in FRIEND_PROFILES.items():
+            emoji = data.get("emoji", "👤")
+            embed.add_field(
+                name=f"{emoji} {data['name']}",
+                value=data.get("title", ""),
+                inline=False
+            )
+        
+        embed.set_footer(text="Examples: /profile friend:beast, /profile friend:momin, /profile friend:bishyu, /profile friend:wqrriyo")
+        await interaction.response.send_message(embed=embed)
+        return
+    
+    # Look up friend
+    friend_key = friends_list.get(friend.lower())
+    
+    if not friend_key or friend_key not in FRIEND_PROFILES:
+        embed = discord.Embed(
+            title="❌ Friend Not Found",
+            description=f"Available: beast, momin, bishyu, wqrriyo",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    profile = FRIEND_PROFILES[friend_key]
+    emoji = profile.get("emoji", "👤")
+    
+    embed = discord.Embed(
+        title=f"{emoji} {profile['name']} - {profile.get('title', '')}",
+        description=profile.get('alias', ''),
+        color=discord.Color.from_rgb(50, 184, 198)
+    )
+    
+    if friend_key == "ineffable_beast":
+        embed.add_field(name="🎮 Role", value=profile.get('role', ''), inline=False)
+        embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
+        embed.add_field(name="✨ Traits", value="\n".join(f"• {t}" for t in profile.get('traits', [])), inline=False)
+    
+    elif friend_key == "momin_khan":
+        embed.add_field(name="⚠️ STATUS", value=profile.get('status', ''), inline=False)
+        embed.add_field(name="💰 Victims & Losses", value="\n".join(f"• {v}: {l}" for v, l in profile.get('victims', {}).items()), inline=False)
+        embed.add_field(name="🚨 Method", value=profile.get('method', ''), inline=False)
+    
+    elif friend_key == "bishyu":
+        embed.add_field(name="🎮 Rank", value=profile.get('rank', ''), inline=False)
+        embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
+        embed.add_field(name="🎯 Special Moves", value="\n".join(profile.get('special_moves', [])), inline=False)
+    
+    elif friend_key == "wqrriyo":
+        embed.add_field(name="💔 Status", value=profile.get('status', ''), inline=False)
+        embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
+        embed.add_field(name="💰 Account Loss", value=profile.get('account_loss', ''), inline=False)
+        embed.add_field(name="🤝 Current Actions", value="\n".join(f"• {a}" for a in profile.get('current_actions', [])), inline=False)
+    
+    embed.set_footer(text="Friend Group Database | Anish's Circle")
+    await interaction.response.send_message(embed=embed)
+
+# ============================================================================
+# IMAGE GENERATION COMMAND
 # ============================================================================
 @bot.tree.command(name="imagine", description="Generate an image using Mistral Pixtral AI")
 @app_commands.describe(prompt="Detailed description of the image you want to generate")
@@ -474,7 +643,6 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
     try:
         await interaction.response.defer()
         
-        # Validate prompt length
         if len(prompt) < 3:
             embed = discord.Embed(
                 title="❌ Prompt Too Short",
@@ -495,7 +663,6 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
         
         print(f"🎯 Starting image generation for prompt: {prompt[:50]}...")
         
-        # Generate image
         image_data = await generate_image_mistral(prompt)
         
         if image_data is None:
@@ -511,10 +678,8 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
         image_bytes, filename = image_data
         print(f"✅ Image received: {len(image_bytes)} bytes")
         
-        # Create Discord file from image bytes
         file = discord.File(BytesIO(image_bytes), filename=filename)
         
-        # Send image with embed
         embed = discord.Embed(
             title="🎨 AI Generated Image",
             description=f"**Prompt:** {prompt[:200]}",
@@ -585,17 +750,20 @@ async def slash_channel(interaction: discord.Interaction, channel: Optional[disc
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# OTP & BOOM COMMANDS
+# OTP & BOOM COMMANDS - WITH EXPIRATION
 # ============================================================================
-@bot.tree.command(name="boom", description="Send OTP to configured recipients")
+@bot.tree.command(name="boom", description="Generate and send OTP (expires in 1 min)")
 async def slash_boom(interaction: discord.Interaction):
-    """Generate and send OTP to recipients"""
+    """Generate and send OTP to recipients with expiration"""
     try:
         await interaction.response.defer(ephemeral=True)
         
         otp_code = str(random.randint(100000, 999999))
         if interaction.guild:
-            active_otps[interaction.guild.id] = otp_code
+            active_otps[interaction.guild.id] = {
+                "code": otp_code,
+                "timestamp": time.time()
+            }
         
         send_count = 0
         for user_id in OTP_RECIPIENTS:
@@ -603,7 +771,7 @@ async def slash_boom(interaction: discord.Interaction):
                 user = await bot.fetch_user(user_id)
                 embed = discord.Embed(
                     title="🔐 OTP Generated",
-                    description=f"**Code: `{otp_code}`**",
+                    description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 1 minute**",
                     color=discord.Color.gold()
                 )
                 embed.add_field(name="User", value=interaction.user.mention, inline=True)
@@ -616,7 +784,7 @@ async def slash_boom(interaction: discord.Interaction):
         
         embed = discord.Embed(
             title="✅ OTP Sent",
-            description=f"**Code: `{otp_code}`**\n\nSent to {send_count} recipients",
+            description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {send_count} recipients",
             color=discord.Color.green()
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
@@ -632,7 +800,7 @@ async def slash_boom(interaction: discord.Interaction):
 @bot.tree.command(name="boomotp", description="Verify OTP and send message to everyone")
 @app_commands.describe(otp="OTP code to verify", message="Message to broadcast")
 async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str):
-    """Verify OTP and broadcast message"""
+    """Verify OTP and broadcast message with expiration check"""
     try:
         await interaction.response.defer()
         
@@ -645,10 +813,24 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
-        if active_otps[interaction.guild.id] != otp:
+        otp_data = active_otps[interaction.guild.id]
+        elapsed_time = time.time() - otp_data["timestamp"]
+        
+        if elapsed_time > OTP_EXPIRY_TIME:
+            del active_otps[interaction.guild.id]
+            embed = discord.Embed(
+                title="❌ OTP Expired",
+                description=f"OTP expired after 60 seconds.\n⏳ Elapsed: {int(elapsed_time)}s\n\nUse `/boom` to generate a new one.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        if otp_data["code"] != otp:
+            remaining_time = OTP_EXPIRY_TIME - elapsed_time
             embed = discord.Embed(
                 title="❌ OTP Mismatch",
-                description="The OTP you entered is incorrect.",
+                description=f"The OTP you entered is incorrect.\n⏱️ **Expires in: {int(remaining_time)}s**",
                 color=discord.Color.red()
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -685,6 +867,56 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
         embed = discord.Embed(
             title="❌ Error",
             description="Broadcast failed",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="otpfriend", description="Send OTP to a friend (expires in 1 min)")
+@app_commands.describe(friend="The friend to send OTP to")
+async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User):
+    """Generate OTP and send it to a friend"""
+    try:
+        await interaction.response.defer(ephemeral=True)
+        
+        otp_code = str(random.randint(100000, 999999))
+        if interaction.guild:
+            active_otps[f"friend_{interaction.guild.id}_{friend.id}"] = {
+                "code": otp_code,
+                "timestamp": time.time(),
+                "friend_id": friend.id
+            }
+        
+        try:
+            embed = discord.Embed(
+                title="🔐 OTP Generated",
+                description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 1 minute**",
+                color=discord.Color.gold()
+            )
+            embed.add_field(name="From", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=True)
+            embed.set_footer(text="Use /boomotp to broadcast")
+            await friend.send(embed=embed)
+            
+            confirm_embed = discord.Embed(
+                title="✅ OTP Sent to Friend",
+                description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {friend.mention}",
+                color=discord.Color.green()
+            )
+            await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+            
+        except Exception as e:
+            print(f"Failed to send OTP to friend {friend.id}: {e}")
+            embed = discord.Embed(
+                title="❌ Error",
+                description=f"Failed to send OTP to {friend.mention}. Make sure DMs are enabled.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="Failed to generate OTP",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
