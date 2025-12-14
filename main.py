@@ -14,6 +14,8 @@ import time
 import random
 import httpx
 from typing import Optional
+from io import BytesIO
+import base64
 
 # ============================================================================
 # CONFIGURATION
@@ -31,8 +33,8 @@ OWNER_ID = 1143915237228583738
 ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
-# Special user - Anish Vyapari (you!)
-SPECIAL_USER_ID = 1265981186283409571  # Your Discord ID
+# Special user - Anish Vyapari (YOU!)
+SPECIAL_USER_ID = 1265981186283409571  # YOUR Discord ID
 SPECIAL_USER_NAME = "Anish Vyapari"
 
 # OTP Recipients - IDs of users who should receive OTP
@@ -54,6 +56,7 @@ ANISH_PORTFOLIO = {
 # ============================================================================
 MISTRAL_API_URL = "https://api.mistral.ai/v1"
 MISTRAL_MODEL = "mistral-medium"
+MISTRAL_IMAGE_MODEL = "pixtral-12b-2409"
 
 SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and personable chatbot designed to represent and support Anish Vyapari, a full-stack developer and AI/ML enthusiast from the Mumbai/Panvel area, India.
 
@@ -185,6 +188,52 @@ async def enhance_with_ai(text: str) -> str:
         print(f"❌ AI Enhancement Error: {e}")
         return text
 
+async def generate_image_mistral(prompt: str) -> Optional[tuple]:
+    """Generate image using Mistral Pixtral API and return image data"""
+    try:
+        print(f"🎨 Generating image with prompt: {prompt[:50]}...")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{MISTRAL_API_URL}/images/generations",
+                headers={
+                    "Authorization": f"Bearer {MISTRAL_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": MISTRAL_IMAGE_MODEL,
+                    "prompt": prompt,
+                    "size": "1024x1024",
+                    "quality": "standard",
+                    "n": 1
+                },
+                timeout=60.0
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Extract image data
+            if "data" in result and len(result["data"]) > 0:
+                image_data = result["data"][0]
+                
+                # Handle base64 encoded image
+                if "b64_json" in image_data:
+                    image_bytes = base64.b64decode(image_data["b64_json"])
+                    return (image_bytes, "image.png")
+                
+                # Handle URL
+                elif "url" in image_data:
+                    image_url = image_data["url"]
+                    async with httpx.AsyncClient() as img_client:
+                        img_response = await img_client.get(image_url)
+                        img_response.raise_for_status()
+                        return (img_response.content, "image.png")
+            
+            print(f"❌ No image data in response: {result}")
+            return None
+    except Exception as e:
+        print(f"❌ Image Generation Error: {e}")
+        return None
+
 # ============================================================================
 # DISCORD BOT SETUP
 # ============================================================================
@@ -233,12 +282,15 @@ async def on_ready():
     print(f"✅ Bot logged in as {bot.user}")
     print(f"🤖 AI Chatbot by Anish Vyapari is online!")
     print(f"🔑 Mistral Model: {MISTRAL_MODEL}")
+    print(f"🎨 Image Model: {MISTRAL_IMAGE_MODEL}")
     print(f"💬 Chat System: ENABLED")
+    print(f"🖼️ Image Generation: ENABLED")
+    print(f"⭐ Auto-React Enabled for User ID: {SPECIAL_USER_ID}")
     
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name="/help | AI Chat"
+            name="/help | AI Chat & Image Gen"
         )
     )
     
@@ -259,6 +311,7 @@ async def on_message(message: discord.Message):
             # React to Anish's messages with random emoji
             reaction = random.choice(SPECIAL_USER_REACTIONS)
             await message.add_reaction(reaction)
+            print(f"⭐ Reacted to {message.author.name}'s message with {reaction}")
         except Exception as e:
             print(f"Failed to add reaction: {e}")
     
@@ -342,7 +395,7 @@ async def slash_help(interaction: discord.Interaction):
     )
     embed.add_field(
         name="🎯 Main Commands",
-        value="• `/help` - Show this help menu\n• `/info` - Bot information\n• `/reset` - Clear chat history",
+        value="• `/help` - Show this help menu\n• `/info` - Bot information\n• `/reset` - Clear chat history\n• `/imagine` - Generate images with AI",
         inline=False
     )
     embed.add_field(
@@ -374,12 +427,12 @@ async def slash_info(interaction: discord.Interaction):
     )
     embed.add_field(
         name="⚙️ Technical Details",
-        value=f"• Model: {MISTRAL_MODEL}\n• API: Mistral AI\n• Language: Python 3.11+\n• Status: 🟢 Online",
+        value=f"• Chat Model: {MISTRAL_MODEL}\n• Image Model: {MISTRAL_IMAGE_MODEL}\n• API: Mistral AI\n• Language: Python 3.11+\n• Status: 🟢 Online",
         inline=True
     )
     embed.add_field(
         name="🎯 Features",
-        value="✅ AI Chat\n✅ Context Awareness\n✅ Multi-turn Conversations\n✅ Error Handling",
+        value="✅ AI Chat\n✅ Image Generation\n✅ Context Awareness\n✅ Multi-turn Conversations\n✅ Error Handling",
         inline=True
     )
     embed.add_field(
@@ -412,7 +465,74 @@ async def slash_reset(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# CHANNEL MANAGEMENT COMMANDS - FIXED
+# IMAGE GENERATION COMMAND
+# ============================================================================
+@bot.tree.command(name="imagine", description="Generate an image using Mistral Pixtral AI")
+@app_commands.describe(prompt="Detailed description of the image you want to generate")
+async def slash_imagine(interaction: discord.Interaction, prompt: str):
+    """Generate image from text prompt"""
+    try:
+        await interaction.response.defer()
+        
+        # Validate prompt length
+        if len(prompt) < 3:
+            embed = discord.Embed(
+                title="❌ Prompt Too Short",
+                description="Please provide a more detailed description (at least 3 characters)",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        if len(prompt) > 1000:
+            embed = discord.Embed(
+                title="❌ Prompt Too Long",
+                description="Please keep your prompt under 1000 characters",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        # Generate image
+        image_data = await generate_image_mistral(prompt)
+        
+        if image_data is None:
+            embed = discord.Embed(
+                title="❌ Image Generation Failed",
+                description="Failed to generate image. Please try again with a different prompt.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        image_bytes, filename = image_data
+        
+        # Create Discord file from image bytes
+        file = discord.File(BytesIO(image_bytes), filename=filename)
+        
+        # Send image with embed
+        embed = discord.Embed(
+            title="🎨 AI Generated Image",
+            description=f"**Prompt:** {prompt[:200]}...\n\n*Generated by Mistral Pixtral*",
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+        embed.set_image(url=f"attachment://{filename}")
+        embed.set_footer(text=f"Requested by {interaction.user.name}")
+        
+        await interaction.followup.send(file=file, embed=embed)
+        print(f"✅ Image generated for user {interaction.user.name}: {prompt[:50]}")
+        
+    except Exception as e:
+        print(f"❌ Imagine command error: {e}")
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Failed to generate image: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed)
+
+# ============================================================================
+# CHANNEL MANAGEMENT COMMANDS
 # ============================================================================
 @bot.tree.command(name="channel", description="Set the channel where bot will chat (admin only)")
 @app_commands.describe(channel="Channel to enable bot chat (or leave empty to disable)")
@@ -608,7 +728,7 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ============================================================================
-# ANNOUNCEMENT COMMANDS - FIXED
+# ANNOUNCEMENT COMMANDS
 # ============================================================================
 @bot.tree.command(name="setupannounce", description="Set the announcement channel (admin only)")
 @app_commands.describe(channel="Channel for announcements")
@@ -727,4 +847,5 @@ async def slash_announce(interaction: discord.Interaction, message: str):
 # ============================================================================
 # START BOT
 # ============================================================================
-bot.run(DISCORD_BOT_TOKEN)
+if __name__ == "__main__":
+    bot.run(DISCORD_BOT_TOKEN)
