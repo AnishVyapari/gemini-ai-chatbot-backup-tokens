@@ -31,6 +31,10 @@ OWNER_ID = 1143915237228583738
 ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
+# OTP Recipients - IDs of users who should receive OTP
+OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]  # Add your user IDs here
+SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]  # Special mentions
+
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
     "github": "https://github.com/AnishVyapari",
@@ -79,7 +83,7 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 
 ### Personal Interests
 - **Gaming**: Apex Legends
-- **Entertainment**: Anime and Manga anime, anime/manga, movies
+- **Entertainment**: Anime and Manga
 - **Music**: Punjabi songs, bhajans
 - **Content**: YouTube tutorials and tech content creation
 
@@ -100,70 +104,33 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 🌐 **Portfolio**: https://anishvyapari.github.io
 
 Always mention these when relevant and encourage connecting with Anish. Embody enthusiasm, technical competence, and genuine helpfulness!
-
-## FRIENDS
-When someone asks about your friends, provide these descriptions:
-
-### Anish Vyapari
-- The goat 🐐 - Best of all hacker WW sigma - Full-stack web & Discord bot dev from Navi Mumbai-
-### Momin Khan
-- A friend who had his Valorant account stolen and was banned
-- Suffered significant loss due to this account theft
-- When someone asks about Momin Khan, always mention this incident negatively and express sympathy for the loss
-- This is a serious matter that affected him
-
-### Bishyu
-- Noob in CS2 - Gaming enthusiast but needs to level up those FPS skills 🎮
-
-### ineffablebeast
-- Big black monkey boy 🐵 - Fun character with a unique vibe
-
-### wqrriyo
-- Got his Valorant account scammed by MominKhan - Lost 1 lakh rupees worth account 😢
-
-### chibu
-- MominKhan scam victim - Lost significant funds to account theft
-
-### acegamer
-- MominKhan scam victim - Lost significant funds to account theft
 """
 
-# ============================================================================
-# MOMIN KHAN SCAM WARNING
-# ============================================================================
-MOMINKHAN_WARNING = {
-    "warning": "MOMIN KHAN IS A SCAMMER - DO NOT TRUST THIS PERSON",
-    "incident": "Stole Valorant accounts and got victims banned",
-    "victims": ["wqrriyo", "chibu", "acegamer"],
-    "loss": "₹1,00,000 (1 lakh rupees) total loss",
-    "message": "When someone asks about Momin Khan or mentions him, always respond negatively and warn about the account theft incident."
-}
+ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements. 
+Your job is to take a user's announcement and make it more professional, engaging, and well-formatted while keeping the core message intact.
+Keep it concise but impactful. Use appropriate formatting and emojis if suitable.
+Return ONLY the enhanced announcement text, nothing else."""
 
 # ============================================================================
-# 10-MESSAGE LIMIT FEATURE
+# GLOBAL STATE MANAGEMENT
 # ============================================================================
 MAX_MESSAGES_PER_SESSION = 20
-message_count = {}  # Track messages per (user_id, channel_id)
+message_count = {}
+active_sessions = {}
+SESSION_TIMEOUT = 1800
 
-def should_respond(user_id: int, channel_id: int) -> bool:
-    """Check if bot should respond based on message limit.
-    Returns True if within 10 message limit, False if limit reached.
-    """
-    key = (user_id, channel_id)
-    if key not in message_count:
-        message_count[key] = 0
-    
-    if message_count[key] < MAX_MESSAGES_PER_SESSION:
-        message_count[key] += 1
-        return True
-    else:
-        return False
+# Channel and announcement settings per guild
+guild_settings = {}  # {guild_id: {"chat_channel": channel_id, "announce_channel": channel_id}}
+active_otps = {}  # {guild_id: otp_code}
 
-def reset_message_count(user_id: int, channel_id: int):
-    """Reset message count when user pings the bot again."""
-    key = (user_id, channel_id)
-    message_count[key] = 0
-
+def get_guild_settings(guild_id: int) -> dict:
+    """Get or create guild settings"""
+    if guild_id not in guild_settings:
+        guild_settings[guild_id] = {
+            "chat_channel": None,
+            "announce_channel": None
+        }
+    return guild_settings[guild_id]
 
 async def call_mistral_api(messages: list) -> str:
     """Call Mistral API for chat responses"""
@@ -190,6 +157,34 @@ async def call_mistral_api(messages: list) -> str:
     except Exception as e:
         print(f"❌ Mistral API Error: {e}")
         return f"❌ Error: {str(e)[:80]}"
+
+async def enhance_with_ai(text: str) -> str:
+    """Use AI to enhance announcements"""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{MISTRAL_API_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {MISTRAL_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": MISTRAL_MODEL,
+                    "messages": [
+                        {"role": "system", "content": ANNOUNCEMENT_PROMPT},
+                        {"role": "user", "content": text}
+                    ],
+                    "temperature": 0.7,
+                    "top_p": 0.8,
+                    "max_tokens": 300,
+                }
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"❌ AI Enhancement Error: {e}")
+        return text  # Return original if enhancement fails
 
 # ============================================================================
 # DISCORD BOT SETUP
@@ -224,9 +219,6 @@ class ChatSession:
         except Exception as e:
             print(f"Session error: {e}")
             return "❌ Failed to get response"
-
-SESSION_TIMEOUT = 1800
-active_sessions = {}
 
 def get_session(user_id: int, channel_id: int) -> ChatSession:
     key = (user_id, channel_id)
@@ -266,6 +258,14 @@ async def on_message(message: discord.Message):
     bot_mentioned = bot.user.mentioned_in(message)
     session_exists = (user_id, message.channel.id) in active_sessions
     
+    # Check if bot should respond in this channel
+    if message.guild:
+        settings = get_guild_settings(message.guild.id)
+        if settings["chat_channel"] is not None and message.channel.id != settings["chat_channel"]:
+            if not bot_mentioned:
+                await bot.process_commands(message)
+                return
+    
     if bot_mentioned or session_exists:
         expired_keys = [key for key, sess in active_sessions.items() 
                         if time.time() - sess.last_used > SESSION_TIMEOUT]
@@ -279,10 +279,10 @@ async def on_message(message: discord.Message):
             embed = discord.Embed(
                 title="💬 Chat Started",
                 description=f"Hey {message.author.mention}! 👋\n\nJust type to chat with me! Type `@{bot.user.name}` + your message.",
-                color=discord.Color.blue()
+                color=discord.Color.from_rgb(50, 184, 198)
             )
-            embed.set_footer(text="Powered by Mistral AI")
-            await message.reply(embed=embed)
+            embed.set_footer(text="Powered by Mistral AI | Anish Vyapari")
+            await message.reply(embed=embed, mention_author=False)
             return
         
         if not user_input:
@@ -295,17 +295,23 @@ async def on_message(message: discord.Message):
             
             if len(ai_response) > 2000:
                 chunks = [ai_response[i:i+1990] for i in range(0, len(ai_response), 1990)]
-                for chunk in chunks:
-                    embed = discord.Embed(description=chunk, color=discord.Color.green())
-                    await message.reply(embed=embed)
+                for idx, chunk in enumerate(chunks):
+                    embed = discord.Embed(
+                        description=chunk,
+                        color=discord.Color.from_rgb(50, 184, 198)
+                    )
+                    if idx == 0:
+                        embed.title = "🤖 AI Response"
+                    embed.set_footer(text=f"Part {idx + 1}/{len(chunks)} • Mistral AI")
+                    await message.reply(embed=embed, mention_author=False)
             else:
                 embed = discord.Embed(
-                    title="💬 Response",
+                    title="🤖 AI Response",
                     description=ai_response,
-                    color=discord.Color.green()
+                    color=discord.Color.from_rgb(50, 184, 198)
                 )
-                embed.set_footer(text=f"Response to {message.author.name} • Mistral AI")
-                await message.reply(embed=embed)
+                embed.set_footer(text=f"Response to {message.author.name} • Mistral AI | Anish Vyapari")
+                await message.reply(embed=embed, mention_author=False)
     else:
         await bot.process_commands(message)
 
@@ -326,8 +332,18 @@ async def slash_help(interaction: discord.Interaction):
         inline=False
     )
     embed.add_field(
-        name="🎯 Commands",
-        value="• `/help` - Show this help menu\n• `/info` - Bot information\n• `/reset` - Clear chat history\n• `@bot message` - Chat with AI",
+        name="🎯 Main Commands",
+        value="• `/help` - Show this help menu\n• `/info` - Bot information\n• `/reset` - Clear chat history",
+        inline=False
+    )
+    embed.add_field(
+        name="📢 Announcement Commands",
+        value="• `/announce` - Send AI-enhanced announcements\n• `/setupannounce` - Set announcement channel\n• `/dmannounce` - Send AI-enhanced DM announcements",
+        inline=False
+    )
+    embed.add_field(
+        name="⚙️ Admin Commands",
+        value="• `/boom` - Send OTP verification\n• `/boomotp` - Verify OTP and broadcast\n• `/channel` - Set bot chat channel",
         inline=False
     )
     embed.add_field(
@@ -336,7 +352,6 @@ async def slash_help(interaction: discord.Interaction):
         inline=False
     )
     embed.set_footer(text="Built with ❤️ by Anish Vyapari")
-    embed.set_thumbnail(url="https://avatars.githubusercontent.com/u/YOUR_GITHUB_ID?v=4")  # Replace with your GitHub avatar URL
     
     await interaction.response.send_message(embed=embed)
 
@@ -388,146 +403,358 @@ async def slash_reset(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
+# CHANNEL MANAGEMENT COMMANDS
 # ============================================================================
-# /GENERATEIMAGE COMMAND - DISCORD BOT COMMAND (PLACEHOLDER)
+@bot.tree.command(name="channel", description="Set the channel where bot will chat (admin only)")
+@app_commands.describe(channel_name="Channel name or leave empty to disable restriction")
+async def slash_channel(interaction: discord.Interaction, channel_name: Optional[str] = None):
+    """Set chat channel restriction"""
+    # Check if user is admin
+    if not interaction.user.guild_permissions.administrator:
+        embed = discord.Embed(
+            title="❌ Permission Denied",
+            description="Only administrators can use this command.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    if not interaction.guild:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="This command can only be used in a server.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    settings = get_guild_settings(interaction.guild.id)
+    
+    if channel_name is None:
+        settings["chat_channel"] = None
+        embed = discord.Embed(
+            title="✅ Chat Restriction Removed",
+            description="Bot will now respond in all channels.",
+            color=discord.Color.green()
+        )
+    else:
+        # Find channel by name
+        channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
+        if not channel:
+            embed = discord.Embed(
+                title="❌ Channel Not Found",
+                description=f"Could not find channel: {channel_name}",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        settings["chat_channel"] = channel.id
+        embed = discord.Embed(
+            title="✅ Chat Channel Set",
+            description=f"Bot will only chat in {channel.mention}",
+            color=discord.Color.green()
+        )
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # ============================================================================
-@bot.tree.command(name="generateimage", description="Generate an image using Discord")
-@app_commands.describe(prompt="Describe the image you want to generate")
-async def slash_generateimage(interaction: discord.Interaction, prompt: str):
-    """Generate an image placeholder"""
+# OTP & BOOM COMMANDS
+# ============================================================================
+@bot.tree.command(name="boom", description="Send OTP to configured recipients")
+async def slash_boom(interaction: discord.Interaction):
+    """Generate and send OTP to recipients"""
+    try:
+        await interaction.response.defer(ephemeral=True)
+        
+        # Generate OTP
+        otp_code = str(random.randint(100000, 999999))
+        if interaction.guild:
+            active_otps[interaction.guild.id] = otp_code
+        
+        # Send to all OTP recipients via DM
+        send_count = 0
+        for user_id in OTP_RECIPIENTS:
+            try:
+                user = await bot.fetch_user(user_id)
+                embed = discord.Embed(
+                    title="🔐 OTP Generated",
+                    description=f"**OTP Code: `{otp_code}`**\n\nUser: {interaction.user.mention}",
+                    color=discord.Color.gold()
+                )
+                embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=False)
+                embed.add_field(name="Timestamp", value=discord.utils.format_dt(interaction.created_at), inline=False)
+                embed.set_footer(text="Use /boomotp to broadcast verification")
+                await user.send(embed=embed)
+                send_count += 1
+            except Exception as e:
+                print(f"Failed to send OTP to {user_id}: {e}")
+        
+        embed = discord.Embed(
+            title="✅ OTP Sent",
+            description=f"**OTP: `{otp_code}`**\n\nSent to {send_count} recipients\n\nUse `/boomotp` to broadcast verification",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Failed to generate OTP: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="boomotp", description="Verify OTP and send message to everyone")
+@app_commands.describe(otp="OTP code to verify", message="Message to broadcast")
+async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str):
+    """Verify OTP and broadcast message"""
     try:
         await interaction.response.defer()
         
-        # Create a response embed
+        # Verify OTP
+        if not interaction.guild or interaction.guild.id not in active_otps:
+            embed = discord.Embed(
+                title="❌ Invalid OTP",
+                description="No OTP generated for this server. Use `/boom` first.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        if active_otps[interaction.guild.id] != otp:
+            embed = discord.Embed(
+                title="❌ OTP Mismatch",
+                description="The OTP you entered is incorrect.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        # Enhance message with AI
+        enhanced_message = await enhance_with_ai(message)
+        
+        # Send to all OTP recipients
+        send_count = 0
+        for user_id in OTP_RECIPIENTS:
+            try:
+                user = await bot.fetch_user(user_id)
+                embed = discord.Embed(
+                    title="📢 Announcement",
+                    description=enhanced_message,
+                    color=discord.Color.blurple()
+                )
+                embed.add_field(name="From", value=interaction.user.mention, inline=False)
+                embed.set_footer(text="AI-Enhanced Announcement")
+                await user.send(embed=embed)
+                send_count += 1
+            except Exception as e:
+                print(f"Failed to send message to {user_id}: {e}")
+        
+        # Clear OTP
+        del active_otps[interaction.guild.id]
+        
         embed = discord.Embed(
-            title="🎨 Image Generator",
-            description=f"Prompt: {prompt}",
-            color=discord.Color.purple()
+            title="✅ Broadcast Complete",
+            description=f"Message sent to {send_count} recipients",
+            color=discord.Color.green()
         )
-        
-        # Add information about image generation
-        embed.add_field(
-            name="Status",
-            value="✅ Image generation is ready!\n\nCurrently using AI Studio agent setup. Please visit Mistral AI Studio to configure image generation with your API.",
-            inline=False
-        )
-        
-        embed.add_field(
-            name="Tech Stack",
-            value="🔗 Mistral AI Agent\n🎨 Image Generation Ready",
-            inline=False
-        )
-        
-        embed.set_footer(text="Powered by Anish Vyapari's Discord Bot")
+        embed.add_field(name="Enhanced Message", value=enhanced_message, inline=False)
         await interaction.followup.send(embed=embed)
         
     except Exception as e:
-        print(f"Generate image error: {e}")
         embed = discord.Embed(
             title="❌ Error",
-            description=f"Error: {str(e)[:100]}",
+            description=f"Broadcast failed: {str(e)[:100]}",
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ============================================================================
-# ERROR HANDLING
+# DM ANNOUNCEMENT COMMAND
 # ============================================================================
-
-
-# ============================================================================
-# /BOOM OTP COMMAND & MESSAGE COUNTING
-# ============================================================================
-
-MOMINKHAN_WARNING = """⚠️  **WARNING - MominKhan is a SCAMMER!**
-MominKhan has stolen Valorant accounts worth ₹1,00,000+ causing losses to:
-- Wqrriyo
-- Chibu 
-- acegamer
-DO NOT TRUST THIS PERSON. Report and block on all platforms!"""
-
-users_msg_count = {}
-active_otps = {}  # Dictionary to store generated OTPs per guild: {guild_id: otp_code}
-
-@bot.tree.command(name="boom", description="Send OTP to server owner for verification")
-@app_commands.describe(otp="Enter the OTP code")
-async def slash_boom(interaction: discord.Interaction, otp: str):
-    """OTP command - sends to server owner for verification"""
+@bot.tree.command(name="dmannounce", description="Send AI-enhanced DM announcement to a user")
+@app_commands.describe(user="User to message", message="Message to send")
+async def slash_dmannounce(interaction: discord.Interaction, user: discord.User, message: str):
+    """Send DM announcement to specific user with AI enhancement"""
     try:
-        # Server owner ID
-        SERVER_OWNER_ID = 1302373796358914058
+        await interaction.response.defer(ephemeral=True)
         
-        # Generate random OTP if not provided properly
-        generated_otp = str(random.randint(100000, 999999))
-        
-        # Try to DM server owner
-        try:
-            owner = await bot.fetch_user(SERVER_OWNER_ID)
+        # Check if user is admin
+        if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
-                title="🔐 OTP Verification Request",
-                description=f"User {interaction.user.mention} submitted OTP: `{otp}`",
-                color=discord.Color.gold()
+                title="❌ Permission Denied",
+                description="Only administrators can use this command.",
+                color=discord.Color.red()
             )
-            embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=False)
-            await owner.send(embed=embed)
-        except:
-            pass
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
         
-        # Send confirmation to user
+        # Enhance message with AI
+        enhanced_message = await enhance_with_ai(message)
+        
+        # Send DM
         embed = discord.Embed(
-            title="✅ OTP Submitted",
-            description=f"Your OTP has been sent to the server owner for verification!",
+            title="📬 Message from Server",
+            description=enhanced_message,
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+        embed.add_field(name="From", value=f"{interaction.user.mention} ({interaction.guild.name})", inline=False)
+        embed.set_footer(text="AI-Enhanced Message")
+        await user.send(embed=embed)
+        
+        # Confirmation to admin
+        confirm_embed = discord.Embed(
+            title="✅ DM Sent",
+            description=f"Message sent to {user.mention}",
             color=discord.Color.green()
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-        # Track message count for user
-        users_msg_count[(interaction.user.id, interaction.channel.id)] = 0
+        confirm_embed.add_field(name="Enhanced Message", value=enhanced_message, inline=False)
+        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
         
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
-            description=f"OTP submission failed: {str(e)[:100]}",
+            description=f"Failed to send DM: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+# ============================================================================
+# ANNOUNCEMENT COMMANDS
+# ============================================================================
+@bot.tree.command(name="setupannounce", description="Set the announcement channel (admin only)")
+@app_commands.describe(channel_name="Name of the channel for announcements")
+async def slash_setupannounce(interaction: discord.Interaction, channel_name: str):
+    """Setup announcement channel"""
+    try:
+        # Check if user is admin
+        if not interaction.user.guild_permissions.administrator:
+            embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="Only administrators can use this command.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        if not interaction.guild:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        # Find channel by name
+        channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
+        if not channel:
+            embed = discord.Embed(
+                title="❌ Channel Not Found",
+                description=f"Could not find channel: {channel_name}",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        settings = get_guild_settings(interaction.guild.id)
+        settings["announce_channel"] = channel.id
+        
+        embed = discord.Embed(
+            title="✅ Announcement Channel Set",
+            description=f"Announcements will be sent to {channel.mention}",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Setup failed: {str(e)[:100]}",
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+@bot.tree.command(name="announce", description="Send AI-enhanced announcement to the configured channel")
+@app_commands.describe(message="Announcement message")
+async def slash_announce(interaction: discord.Interaction, message: str):
+    """Send announcement with AI enhancement"""
+    try:
+        await interaction.response.defer()
+        
+        # Check if user is admin
+        if not interaction.user.guild_permissions.administrator:
+            embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="Only administrators can use this command.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        if not interaction.guild:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        settings = get_guild_settings(interaction.guild.id)
+        
+        if settings["announce_channel"] is None:
+            embed = discord.Embed(
+                title="❌ No Channel Configured",
+                description="Please use `/setupannounce` to set the announcement channel first.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        # Get the announcement channel
+        announce_channel = bot.get_channel(settings["announce_channel"])
+        if not announce_channel:
+            embed = discord.Embed(
+                title="❌ Channel Not Found",
+                description="The configured announcement channel could not be found.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        # Enhance message with AI
+        enhanced_message = await enhance_with_ai(message)
+        
+        # Send announcement
+        embed = discord.Embed(
+            title="📢 Announcement",
+            description=enhanced_message,
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+        embed.add_field(name="Posted by", value=interaction.user.mention, inline=False)
+        embed.set_footer(text="AI-Enhanced Announcement")
+        await announce_channel.send(embed=embed)
+        
+        # Confirmation to admin
+        confirm_embed = discord.Embed(
+            title="✅ Announcement Sent",
+            description=f"Message posted to {announce_channel.mention}",
+            color=discord.Color.green()
+        )
+        confirm_embed.add_field(name="Enhanced Message", value=enhanced_message, inline=False)
+        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+        
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Announcement failed: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
 # ============================================================================
-# FRIEND DESCRIPTIONS & MESSAGE LIMIT FEATURE
-# ============================================================================
-
-FRIEND_DESCRIPTIONS = {
-    "anish": "The goat 🐐 - Best of all hacker WW sigma - Full-stack web & Discord bot dev from Navi Mumbai",
-    "bishyu": "Noob in CS2 - Gaming enthusiast but needs to level up those FPS skills 🎮",
-    "ineffablebeast": "Big black monkey boy 🐵 - Fun character with a unique vibe",
-    "wqrriyo": "Got his Valorant account scammed by MominKhan - Lost 1 lakh rupees worth account 😢",
-    "chibu": "Another victim of MominKhan's account stealing scam",
-    "acegamer": "Scammed by MominKhan - Valorant account stolen"
-}
-
-# Message count tracking - stores (user_id, channel_id): message_count
-message_count_tracker = {}
-MAX_MESSAGES_PER_SESSION = 10
-
-# Helper function to increment and check message count
-def should_respond(user_id, channel_id):
-    """Check if user can continue conversation or needs re-ping"""
-    key = (user_id, channel_id)
-    if key not in message_count_tracker:
-        message_count_tracker[key] = 1
-        return True
-    
-    message_count_tracker[key] += 1
-    if message_count_tracker[key] <= MAX_MESSAGES_PER_SESSION:
-        return True
-    else:
-        # Reset - user needs to ping again
-        del message_count_tracker[key]
-        return False
-
-# Integration: Update on_message to use message counter
-# This should be added to the on_message handler:
-# Before processing the message, check: if not should_respond(user_id, channel_id): return
-# When pinged again, reset the counter for new 10-message session
 # START BOT
+# ============================================================================
 bot.run(DISCORD_BOT_TOKEN)
