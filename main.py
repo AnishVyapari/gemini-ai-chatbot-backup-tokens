@@ -31,6 +31,10 @@ OWNER_ID = 1143915237228583738
 ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
+# Special user - Anish Vyapari (you!)
+SPECIAL_USER_ID = 1143915237228583738  # Your Discord ID
+SPECIAL_USER_NAME = "Anish Vyapari"
+
 # OTP Recipients - IDs of users who should receive OTP
 OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]
 SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]
@@ -114,6 +118,9 @@ SESSION_TIMEOUT = 1800
 # Channel and announcement settings per guild
 guild_settings = {}
 active_otps = {}
+
+# Reaction options for special user
+SPECIAL_USER_REACTIONS = ["🔥", "💯", "👑", "⭐", "✨", "🚀", "💪", "🎯"]
 
 def get_guild_settings(guild_id: int) -> dict:
     """Get or create guild settings"""
@@ -245,6 +252,15 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author == bot.user:
         return
+    
+    # Check if message is from special user (Anish)
+    if message.author.id == SPECIAL_USER_ID:
+        try:
+            # React to Anish's messages with random emoji
+            reaction = random.choice(SPECIAL_USER_REACTIONS)
+            await message.add_reaction(reaction)
+        except Exception as e:
+            print(f"Failed to add reaction: {e}")
     
     user_id = message.author.id
     bot_mentioned = bot.user.mentioned_in(message)
