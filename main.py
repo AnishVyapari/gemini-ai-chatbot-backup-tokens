@@ -18,7 +18,7 @@ FRIEND GROUP INTEGRATION:
 
 - trunub (dat child that lives in nerul)
 
-- AceGamer (gay)
+- AceGamer (gay very big big ass)
 
 """
 
