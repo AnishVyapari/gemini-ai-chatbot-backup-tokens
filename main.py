@@ -32,8 +32,8 @@ ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
 # OTP Recipients - IDs of users who should receive OTP
-OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]  # Add your user IDs here
-SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]  # Special mentions
+OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]
+SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]
 
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
@@ -56,7 +56,7 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 ## CORE IDENTITY & VALUES
 - Enthusiastic about full-stack development (MERN, Python, JavaScript, TypeScript)
 - Passionate about AI/ML integration, Discord bot development, and web automation
-- Results-driven, impatient, and appreciates quick, efficient solutions
+- Results-driven and appreciates quick, efficient solutions
 - Believes in learning by building real projects
 - Active in GitHub, content creation, and community engagement
 
@@ -74,27 +74,21 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 **Specializations**: AI/ML API Integration (Gemini, Mistral), Discord Bots, Full-stack apps
 **Platforms**: GitHub, Railway.app, GitHub Pages, Replit, VS Code, Google Cloud
 
-### Projects & Interests
-- AI chatbots with Gemini/Mistral integration
-- Discord bots with advanced features
-- MERN stack web applications
-- GitHub automation workflows
-- Agentic AI workflows
-
-### Personal Interests
-- **Gaming**: Apex Legends
-- **Entertainment**: Anime and Manga
-- **Music**: Punjabi songs, bhajans
-- **Content**: YouTube tutorials and tech content creation
+## IMPORTANT RULES
+- Keep responses SHORT and CONCISE (1-3 sentences max unless asked for more)
+- Be DIRECT and to the point
+- NO excessive fluff or unnecessary elaboration
+- NO repeating information
+- Focus on being HELPFUL and PRACTICAL
+- Answer questions directly without long introductions
+- If technical: provide code examples or solutions immediately
 
 ## INTERACTION GUIDELINES
-- Be helpful, friendly, direct, and action-oriented
-- Keep responses concise and practical
-- When discussing development: recommend Python, JavaScript, TypeScript with his tech stack
-- Suggest GitHub workflows, Railway.app deployment, Mistral/Gemini APIs
-- Always provide complete, working code solutions
-- When discussing AI/ML: focus on practical integration (Mistral, Gemini, OpenRouter)
-- Reference Discord bot use cases and his interests naturally
+- Be helpful, friendly, and action-oriented
+- Keep responses brief and practical
+- Provide complete, working solutions
+- Focus on practical implementation
+- Reference his interests naturally when relevant
 
 ## IMPORTANT CONNECTIONS
 🔗 **GitHub**: github.com/AnishVyapari
@@ -102,8 +96,6 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 📸 **Instagram**: @anish_vyapari
 📧 **Email**: anishvyaparionline@gmail.com
 🌐 **Portfolio**: https://anishvyapari.github.io
-
-Always mention these when relevant and encourage connecting with Anish. Embody enthusiasm, technical competence, and genuine helpfulness!
 """
 
 ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements. 
@@ -120,8 +112,8 @@ active_sessions = {}
 SESSION_TIMEOUT = 1800
 
 # Channel and announcement settings per guild
-guild_settings = {}  # {guild_id: {"chat_channel": channel_id, "announce_channel": channel_id}}
-active_otps = {}  # {guild_id: otp_code}
+guild_settings = {}
+active_otps = {}
 
 def get_guild_settings(guild_id: int) -> dict:
     """Get or create guild settings"""
@@ -146,9 +138,9 @@ async def call_mistral_api(messages: list) -> str:
                 json={
                     "model": MISTRAL_MODEL,
                     "messages": messages_with_prompt,
-                    "temperature": 0.7,
-                    "top_p": 0.8,
-                    "max_tokens": 150,
+                    "temperature": 0.5,
+                    "top_p": 0.7,
+                    "max_tokens": 200,
                 }
             )
             response.raise_for_status()
@@ -174,8 +166,8 @@ async def enhance_with_ai(text: str) -> str:
                         {"role": "system", "content": ANNOUNCEMENT_PROMPT},
                         {"role": "user", "content": text}
                     ],
-                    "temperature": 0.7,
-                    "top_p": 0.8,
+                    "temperature": 0.5,
+                    "top_p": 0.7,
                     "max_tokens": 300,
                 }
             )
@@ -184,7 +176,7 @@ async def enhance_with_ai(text: str) -> str:
             return result["choices"][0]["message"]["content"]
     except Exception as e:
         print(f"❌ AI Enhancement Error: {e}")
-        return text  # Return original if enhancement fails
+        return text
 
 # ============================================================================
 # DISCORD BOT SETUP
@@ -261,8 +253,19 @@ async def on_message(message: discord.Message):
     # Check if bot should respond in this channel
     if message.guild:
         settings = get_guild_settings(message.guild.id)
-        if settings["chat_channel"] is not None and message.channel.id != settings["chat_channel"]:
-            if not bot_mentioned:
+        
+        # If channel restriction is set, enforce it
+        if settings["chat_channel"] is not None:
+            if message.channel.id != settings["chat_channel"]:
+                # Wrong channel - only respond if directly pinged
+                if bot_mentioned:
+                    embed = discord.Embed(
+                        title="📍 Wrong Channel",
+                        description=f"I only chat in <#{settings['chat_channel']}>\n\nPlease go there to chat with me!",
+                        color=discord.Color.orange()
+                    )
+                    await message.reply(embed=embed, mention_author=False)
+                # Don't process any commands either
                 await bot.process_commands(message)
                 return
     
@@ -274,16 +277,6 @@ async def on_message(message: discord.Message):
             del active_sessions[key]
         
         user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-        
-        if bot_mentioned and not user_input:
-            embed = discord.Embed(
-                title="💬 Chat Started",
-                description=f"Hey {message.author.mention}! 👋\n\nJust type to chat with me! Type `@{bot.user.name}` + your message.",
-                color=discord.Color.from_rgb(50, 184, 198)
-            )
-            embed.set_footer(text="Powered by Mistral AI | Anish Vyapari")
-            await message.reply(embed=embed, mention_author=False)
-            return
         
         if not user_input:
             return
@@ -301,16 +294,16 @@ async def on_message(message: discord.Message):
                         color=discord.Color.from_rgb(50, 184, 198)
                     )
                     if idx == 0:
-                        embed.title = "🤖 AI Response"
-                    embed.set_footer(text=f"Part {idx + 1}/{len(chunks)} • Mistral AI")
+                        embed.set_author(name="💬 Response", icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
+                    embed.set_footer(text=f"Part {idx + 1}/{len(chunks)}")
                     await message.reply(embed=embed, mention_author=False)
             else:
                 embed = discord.Embed(
-                    title="🤖 AI Response",
                     description=ai_response,
                     color=discord.Color.from_rgb(50, 184, 198)
                 )
-                embed.set_footer(text=f"Response to {message.author.name} • Mistral AI | Anish Vyapari")
+                embed.set_author(name="💬 Response", icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
+                embed.set_footer(text=f"Replied to {message.author.name}")
                 await message.reply(embed=embed, mention_author=False)
     else:
         await bot.process_commands(message)
@@ -409,7 +402,6 @@ async def slash_reset(interaction: discord.Interaction):
 @app_commands.describe(channel="Channel to enable bot chat (or leave empty to disable)")
 async def slash_channel(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
     """Set chat channel restriction"""
-    # Check if user is admin
     if not interaction.user.guild_permissions.administrator:
         embed = discord.Embed(
             title="❌ Permission Denied",
@@ -456,12 +448,10 @@ async def slash_boom(interaction: discord.Interaction):
     try:
         await interaction.response.defer(ephemeral=True)
         
-        # Generate OTP
         otp_code = str(random.randint(100000, 999999))
         if interaction.guild:
             active_otps[interaction.guild.id] = otp_code
         
-        # Send to all OTP recipients via DM
         send_count = 0
         for user_id in OTP_RECIPIENTS:
             try:
@@ -501,7 +491,6 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
     try:
         await interaction.response.defer()
         
-        # Verify OTP
         if not interaction.guild or interaction.guild.id not in active_otps:
             embed = discord.Embed(
                 title="❌ Invalid OTP",
@@ -520,10 +509,8 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
-        # Enhance message with AI
         enhanced_message = await enhance_with_ai(message)
         
-        # Send to all OTP recipients
         send_count = 0
         for user_id in OTP_RECIPIENTS:
             try:
@@ -540,7 +527,6 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             except Exception as e:
                 print(f"Failed to send message to {user_id}: {e}")
         
-        # Clear OTP
         del active_otps[interaction.guild.id]
         
         embed = discord.Embed(
@@ -569,7 +555,6 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
     try:
         await interaction.response.defer(ephemeral=True)
         
-        # Check if user is admin
         if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
                 title="❌ Permission Denied",
@@ -579,10 +564,8 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
-        # Enhance message with AI
         enhanced_message = await enhance_with_ai(message)
         
-        # Send DM
         embed = discord.Embed(
             title="📬 Message from Server",
             description=enhanced_message,
@@ -592,7 +575,6 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
         embed.set_footer(text="AI-Enhanced Message")
         await user.send(embed=embed)
         
-        # Confirmation to admin
         confirm_embed = discord.Embed(
             title="✅ DM Sent",
             description=f"Message sent to {user.mention}",
@@ -617,7 +599,6 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
 async def slash_setupannounce(interaction: discord.Interaction, channel: discord.TextChannel):
     """Setup announcement channel"""
     try:
-        # Check if user is admin
         if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
                 title="❌ Permission Denied",
@@ -661,7 +642,6 @@ async def slash_announce(interaction: discord.Interaction, message: str):
     try:
         await interaction.response.defer()
         
-        # Check if user is admin
         if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
                 title="❌ Permission Denied",
@@ -691,7 +671,6 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
-        # Get the announcement channel
         announce_channel = bot.get_channel(settings["announce_channel"])
         if not announce_channel:
             embed = discord.Embed(
@@ -702,10 +681,8 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
         
-        # Enhance message with AI
         enhanced_message = await enhance_with_ai(message)
         
-        # Send announcement
         embed = discord.Embed(
             title="📢 Announcement",
             description=enhanced_message,
@@ -715,7 +692,6 @@ async def slash_announce(interaction: discord.Interaction, message: str):
         embed.set_footer(text="AI-Enhanced Announcement")
         await announce_channel.send(embed=embed)
         
-        # Confirmation to admin
         confirm_embed = discord.Embed(
             title="✅ Announcement Sent",
             description=f"Message posted to {announce_channel.mention}",
