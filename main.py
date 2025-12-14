@@ -16,6 +16,10 @@ FRIEND GROUP INTEGRATION:
 
 - wqrriyo (The Valorant Scam Victim)
 
+- trunub (dat child that lives in nerul)
+
+- AceGamer (gay)
+
 """
 
 import discord
