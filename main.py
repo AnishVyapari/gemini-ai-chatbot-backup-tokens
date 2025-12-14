@@ -1,14 +1,23 @@
 """
+
 Discord AI Chatbot powered by Mistral AI
+
 Created by Anish Vyapari
+
 Full-stack web & Discord bot developer
 
 FRIEND GROUP INTEGRATION:
+
 - Ineffable Beast (Big Black Monkey Boy)
+
 - Momin Khan (The Account Reaper/Notorious Scammer)
+
 - Bishyu (The CS2 Silver Legend)
+
 - wqrriyo (The Valorant Scam Victim)
+
 """
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -26,6 +35,7 @@ import base64
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
+
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
@@ -40,7 +50,7 @@ ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
 # Special user - Anish Vyapari (YOU!)
-SPECIAL_USER_ID = 1265981186283409571  # YOUR Discord ID
+SPECIAL_USER_ID = 1265981186283409571 # YOUR Discord ID
 SPECIAL_USER_NAME = "Anish Vyapari"
 
 # OTP Recipients - IDs of users who should receive OTP
@@ -48,7 +58,7 @@ OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]
 SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]
 
 # OTP Settings
-OTP_EXPIRY_TIME = 60  # OTP expires after 1 minute (60 seconds)
+OTP_EXPIRY_TIME = 60 # OTP expires after 1 minute (60 seconds)
 
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
@@ -63,6 +73,7 @@ ANISH_PORTFOLIO = {
 # ============================================================================
 # FRIEND GROUP DATABASE
 # ============================================================================
+
 FRIEND_PROFILES = {
     "ineffable_beast": {
         "name": "Ineffable Beast",
@@ -128,6 +139,7 @@ FRIEND_PROFILES = {
 # ============================================================================
 # MISTRAL API SETUP
 # ============================================================================
+
 MISTRAL_API_URL = "https://api.mistral.ai/v1"
 MISTRAL_MODEL = "mistral-medium"
 MISTRAL_IMAGE_MODEL = "pixtral-12b-2409"
@@ -135,6 +147,7 @@ MISTRAL_IMAGE_MODEL = "pixtral-12b-2409"
 SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and personable chatbot designed to represent and support Anish Vyapari, a full-stack developer and AI/ML enthusiast from the Mumbai/Panvel area, India.
 
 ## CORE IDENTITY & VALUES
+
 - Enthusiastic about full-stack development (MERN, Python, JavaScript, TypeScript)
 - Passionate about AI/ML integration, Discord bot development, and web automation
 - Results-driven and appreciates quick, efficient solutions
@@ -142,6 +155,7 @@ SYSTEM_PROMPT = """You are Anish's AI Assistant - a knowledgeable, helpful, and 
 - Active in GitHub, content creation, and community engagement
 
 ## ABOUT ANISH
+
 ### Professional Profile
 - **Role**: Full-Stack Developer & Engineering Student
 - **Location**: Navi Mumbai, Nerul, India
@@ -163,6 +177,7 @@ You know about Anish's friend group:
 - **wqrriyo**: Scam victim of Momin Khan, shows support and empathy
 
 ## IMPORTANT RULES
+
 - Keep responses SHORT and CONCISE (1-3 sentences max unless asked for more)
 - Be DIRECT and to the point
 - NO excessive fluff or unnecessary elaboration
@@ -173,6 +188,7 @@ You know about Anish's friend group:
 - When asked about friend group members: Be honest, supportive (except for Momin—warn about him)
 
 ## INTERACTION GUIDELINES
+
 - Be helpful, friendly, and action-oriented
 - Keep responses brief and practical
 - Provide complete, working solutions
@@ -181,6 +197,7 @@ You know about Anish's friend group:
 - Show loyalty to the friend group
 
 ## IMPORTANT CONNECTIONS
+
 🔗 **GitHub**: github.com/AnishVyapari
 💬 **Discord Server**: https://discord.com/invite/dzsKgWMgjJ
 📸 **Instagram**: @anish_vyapari
@@ -188,14 +205,18 @@ You know about Anish's friend group:
 🌐 **Portfolio**: https://anishvyapari.github.io
 """
 
-ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements. 
+ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements.
+
 Your job is to take a user's announcement and make it more professional, engaging, and well-formatted while keeping the core message intact.
+
 Keep it concise but impactful. Use appropriate formatting and emojis if suitable.
+
 Return ONLY the enhanced announcement text, nothing else."""
 
 # ============================================================================
 # GLOBAL STATE MANAGEMENT
 # ============================================================================
+
 MAX_MESSAGES_PER_SESSION = 20
 message_count = {}
 active_sessions = {}
@@ -294,19 +315,19 @@ async def generate_image_mistral(prompt: str) -> Optional[tuple]:
             response.raise_for_status()
             result = response.json()
             print(f"✅ API Response received: {result.keys()}")
-            
+
             # Extract image data
             if "data" in result and len(result["data"]) > 0:
                 image_data = result["data"][0]
                 print(f"📊 Image data keys: {image_data.keys()}")
-                
+
                 # Handle base64 encoded image
                 if "b64_json" in image_data:
                     print("🔄 Decoding base64 image...")
                     image_bytes = base64.b64decode(image_data["b64_json"])
                     print(f"✅ Base64 decoded: {len(image_bytes)} bytes")
                     return (image_bytes, "image.png")
-                
+
                 # Handle URL
                 elif "url" in image_data:
                     print(f"🔄 Downloading image from URL: {image_data['url'][:50]}...")
@@ -315,9 +336,10 @@ async def generate_image_mistral(prompt: str) -> Optional[tuple]:
                         img_response.raise_for_status()
                         print(f"✅ Image downloaded: {len(img_response.content)} bytes")
                         return (img_response.content, "image.png")
-            
+
             print(f"❌ No image data in response: {result}")
             return None
+
     except Exception as e:
         print(f"❌ Image Generation Error: {type(e).__name__}: {e}")
         import traceback
@@ -327,32 +349,33 @@ async def generate_image_mistral(prompt: str) -> Optional[tuple]:
 # ============================================================================
 # DISCORD BOT SETUP
 # ============================================================================
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.dm_messages = True
 intents.members = True
+
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=None)
 
 # ============================================================================
 # SESSION MANAGEMENT
 # ============================================================================
+
 class ChatSession:
     def __init__(self, user_id: int, channel_id: int):
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
         self.last_used = time.time()
-    
+
     async def get_response(self, user_message: str) -> str:
         """Get AI response from Mistral"""
         try:
             self.chat_history.append({"role": "user", "content": user_message})
             response_text = await call_mistral_api(self.chat_history)
             self.chat_history.append({"role": "assistant", "content": response_text})
-            
             if len(self.chat_history) > 10:
                 self.chat_history = self.chat_history[-10:]
-            
             return response_text
         except Exception as e:
             print(f"Session error: {e}")
@@ -367,6 +390,7 @@ def get_session(user_id: int, channel_id: int) -> ChatSession:
 # ============================================================================
 # BOT EVENTS
 # ============================================================================
+
 @bot.event
 async def on_ready():
     print(f"✅ Bot logged in as {bot.user}")
@@ -395,7 +419,7 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author == bot.user:
         return
-    
+
     # Check if message is from special user (Anish)
     if message.author.id == SPECIAL_USER_ID:
         try:
@@ -405,15 +429,14 @@ async def on_message(message: discord.Message):
             print(f"⭐ Reacted to {message.author.name}'s message with {reaction}")
         except Exception as e:
             print(f"Failed to add reaction: {e}")
-    
+
     user_id = message.author.id
     bot_mentioned = bot.user.mentioned_in(message)
     session_exists = (user_id, message.channel.id) in active_sessions
-    
+
     # Check if bot should respond in this channel
     if message.guild:
         settings = get_guild_settings(message.guild.id)
-        
         if settings["chat_channel"] is not None:
             if message.channel.id != settings["chat_channel"]:
                 if bot_mentioned:
@@ -424,29 +447,28 @@ async def on_message(message: discord.Message):
                     )
                     await message.reply(embed=embed, mention_author=False)
                 return
-    
+
     # Only process if bot is mentioned or session exists
     if not (bot_mentioned or session_exists):
         await bot.process_commands(message)
         return
-    
+
     # Clean up expired sessions
-    expired_keys = [key for key, sess in active_sessions.items() 
+    expired_keys = [key for key, sess in active_sessions.items()
                     if time.time() - sess.last_used > SESSION_TIMEOUT]
-    
     for key in expired_keys:
         del active_sessions[key]
-    
+
     user_input = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-    
+
     if not user_input:
         return
-    
+
     async with message.channel.typing():
         session = get_session(user_id, message.channel.id)
         session.last_used = time.time()
         ai_response = await session.get_response(user_input)
-        
+
         if len(ai_response) > 2000:
             chunks = [ai_response[i:i+1990] for i in range(0, len(ai_response), 1990)]
             for idx, chunk in enumerate(chunks):
@@ -468,41 +490,42 @@ async def on_message(message: discord.Message):
             await message.reply(embed=embed, mention_author=False)
 
 # ============================================================================
-# SLASH COMMANDS - HELP & INFO
+# SLASH COMMANDS - MAIN COMMANDS
 # ============================================================================
+
 @bot.tree.command(name="help", description="Show all available commands")
 async def slash_help(interaction: discord.Interaction):
-    """Show help menu"""
+    """Show help menu with all commands"""
     embed = discord.Embed(
-        title="🤖 Anish's AI Chatbot - Help Menu",
+        title="🤖 Anish's AI Chatbot - Commands",
         description="**Powered by Mistral AI**\nFull-featured Discord AI assistant",
         color=discord.Color.from_rgb(50, 184, 198)
     )
-    embed.add_field(
-        name="💬 Chat Features",
-        value="• Mention the bot and chat with AI\n• Multi-turn conversations with context\n• Fast & intelligent responses",
-        inline=False
-    )
+    
     embed.add_field(
         name="🎯 Main Commands",
         value="`/help` • `/info` • `/reset` • `/imagine`",
         inline=False
     )
+    
     embed.add_field(
         name="👥 Friend Profiles",
         value="`/profile` - View friend group info",
         inline=False
     )
+    
     embed.add_field(
         name="📢 Announcements",
         value="`/announce` • `/setupannounce` • `/dmannounce`",
         inline=False
     )
+    
     embed.add_field(
         name="⚙️ Admin Commands",
         value="`/boom` • `/boomotp` • `/otpfriend` • `/channel`",
         inline=False
     )
+    
     embed.set_footer(text="Built with ❤️ by Anish Vyapari")
     
     await interaction.response.send_message(embed=embed)
@@ -515,16 +538,19 @@ async def slash_info(interaction: discord.Interaction):
         description="AI-powered Discord chatbot by Anish Vyapari",
         color=discord.Color.from_rgb(50, 184, 198)
     )
+    
     embed.add_field(
         name="⚙️ Technical",
         value=f"Model: `{MISTRAL_MODEL}`\nImage: `{MISTRAL_IMAGE_MODEL}`\nStatus: 🟢 Online",
         inline=True
     )
+    
     embed.add_field(
         name="✨ Features",
         value="✅ AI Chat\n✅ Image Gen\n✅ Context Aware\n✅ Friend Profiles",
         inline=True
     )
+    
     embed.set_footer(text="⚡ Fast & Reliable")
     
     await interaction.response.send_message(embed=embed)
@@ -533,6 +559,7 @@ async def slash_info(interaction: discord.Interaction):
 async def slash_reset(interaction: discord.Interaction):
     """Reset chat session"""
     key = (interaction.user.id, interaction.channel.id)
+    
     if key in active_sessions:
         del active_sessions[key]
         embed = discord.Embed(
@@ -550,13 +577,87 @@ async def slash_reset(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
+# IMAGE GENERATION COMMAND
+# ============================================================================
+
+@bot.tree.command(name="imagine", description="Generate an image using Mistral Pixtral AI")
+@app_commands.describe(prompt="Detailed description of the image you want to generate")
+async def slash_imagine(interaction: discord.Interaction, prompt: str):
+    """Generate image from text prompt"""
+    try:
+        await interaction.response.defer()
+        
+        if len(prompt) < 3:
+            embed = discord.Embed(
+                title="❌ Prompt Too Short",
+                description="Please provide a more detailed description (at least 3 characters)",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        if len(prompt) > 1000:
+            embed = discord.Embed(
+                title="❌ Prompt Too Long",
+                description="Please keep your prompt under 1000 characters",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        print(f"🎯 Starting image generation for prompt: {prompt[:50]}...")
+        image_data = await generate_image_mistral(prompt)
+        
+        if image_data is None:
+            print("❌ Image generation returned None")
+            embed = discord.Embed(
+                title="❌ Generation Failed",
+                description="Failed to generate image. Please try again with a different prompt.",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+            return
+        
+        image_bytes, filename = image_data
+        print(f"✅ Image received: {len(image_bytes)} bytes")
+        
+        file = discord.File(BytesIO(image_bytes), filename=filename)
+        
+        embed = discord.Embed(
+            title="🎨 AI Generated Image",
+            description=f"**Prompt:** {prompt[:200]}",
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+        embed.set_image(url=f"attachment://{filename}")
+        embed.set_footer(text=f"Generated by Mistral Pixtral • Requested by {interaction.user.name}")
+        
+        await interaction.followup.send(file=file, embed=embed)
+        print(f"✅ Image sent to Discord successfully!")
+        
+    except Exception as e:
+        print(f"❌ Imagine command error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Failed to generate image: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        
+        try:
+            await interaction.followup.send(embed=embed)
+        except:
+            pass
+
+# ============================================================================
 # FRIEND PROFILE COMMANDS
 # ============================================================================
+
 @bot.tree.command(name="profile", description="View friend group profiles")
 @app_commands.describe(friend="Which friend to learn about")
 async def slash_profile(interaction: discord.Interaction, friend: str = None):
     """View friend profiles"""
-    
     friends_list = {
         "beast": "ineffable_beast",
         "ineffable": "ineffable_beast",
@@ -631,83 +732,13 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
         embed.add_field(name="🤝 Current Actions", value="\n".join(f"• {a}" for a in profile.get('current_actions', [])), inline=False)
     
     embed.set_footer(text="Friend Group Database | Anish's Circle")
+    
     await interaction.response.send_message(embed=embed)
 
 # ============================================================================
-# IMAGE GENERATION COMMAND
+# CHANNEL MANAGEMENT COMMAND
 # ============================================================================
-@bot.tree.command(name="imagine", description="Generate an image using Mistral Pixtral AI")
-@app_commands.describe(prompt="Detailed description of the image you want to generate")
-async def slash_imagine(interaction: discord.Interaction, prompt: str):
-    """Generate image from text prompt"""
-    try:
-        await interaction.response.defer()
-        
-        if len(prompt) < 3:
-            embed = discord.Embed(
-                title="❌ Prompt Too Short",
-                description="Please provide a more detailed description (at least 3 characters)",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed)
-            return
-        
-        if len(prompt) > 1000:
-            embed = discord.Embed(
-                title="❌ Prompt Too Long",
-                description="Please keep your prompt under 1000 characters",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed)
-            return
-        
-        print(f"🎯 Starting image generation for prompt: {prompt[:50]}...")
-        
-        image_data = await generate_image_mistral(prompt)
-        
-        if image_data is None:
-            print("❌ Image generation returned None")
-            embed = discord.Embed(
-                title="❌ Generation Failed",
-                description="Failed to generate image. Please try again with a different prompt.",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed)
-            return
-        
-        image_bytes, filename = image_data
-        print(f"✅ Image received: {len(image_bytes)} bytes")
-        
-        file = discord.File(BytesIO(image_bytes), filename=filename)
-        
-        embed = discord.Embed(
-            title="🎨 AI Generated Image",
-            description=f"**Prompt:** {prompt[:200]}",
-            color=discord.Color.from_rgb(50, 184, 198)
-        )
-        embed.set_image(url=f"attachment://{filename}")
-        embed.set_footer(text=f"Generated by Mistral Pixtral • Requested by {interaction.user.name}")
-        
-        await interaction.followup.send(file=file, embed=embed)
-        print(f"✅ Image sent to Discord successfully!")
-        
-    except Exception as e:
-        print(f"❌ Imagine command error: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        embed = discord.Embed(
-            title="❌ Error",
-            description=f"Failed to generate image: {str(e)[:100]}",
-            color=discord.Color.red()
-        )
-        try:
-            await interaction.followup.send(embed=embed)
-        except:
-            pass
 
-# ============================================================================
-# CHANNEL MANAGEMENT COMMANDS
-# ============================================================================
 @bot.tree.command(name="channel", description="Set the channel where bot will chat (admin only)")
 @app_commands.describe(channel="Channel to enable bot chat (or leave empty to disable)")
 async def slash_channel(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
@@ -750,8 +781,9 @@ async def slash_channel(interaction: discord.Interaction, channel: Optional[disc
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# OTP & BOOM COMMANDS - WITH EXPIRATION
+# OTP & BOOM COMMANDS
 # ============================================================================
+
 @bot.tree.command(name="boom", description="Generate and send OTP (expires in 1 min)")
 async def slash_boom(interaction: discord.Interaction):
     """Generate and send OTP to recipients with expiration"""
@@ -759,6 +791,7 @@ async def slash_boom(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
         otp_code = str(random.randint(100000, 999999))
+        
         if interaction.guild:
             active_otps[interaction.guild.id] = {
                 "code": otp_code,
@@ -777,6 +810,7 @@ async def slash_boom(interaction: discord.Interaction):
                 embed.add_field(name="User", value=interaction.user.mention, inline=True)
                 embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=True)
                 embed.set_footer(text="Use /boomotp to broadcast")
+                
                 await user.send(embed=embed)
                 send_count += 1
             except Exception as e:
@@ -787,8 +821,9 @@ async def slash_boom(interaction: discord.Interaction):
             description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {send_count} recipients",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
         
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -849,6 +884,7 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
                 )
                 embed.add_field(name="From", value=interaction.user.mention, inline=False)
                 embed.set_footer(text="AI-Enhanced")
+                
                 await user.send(embed=embed)
                 send_count += 1
             except Exception as e:
@@ -861,8 +897,9 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             description=f"Sent to {send_count} recipients",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=embed)
         
+        await interaction.followup.send(embed=embed)
+    
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -879,6 +916,7 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
         await interaction.response.defer(ephemeral=True)
         
         otp_code = str(random.randint(100000, 999999))
+        
         if interaction.guild:
             active_otps[f"friend_{interaction.guild.id}_{friend.id}"] = {
                 "code": otp_code,
@@ -895,6 +933,7 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
             embed.add_field(name="From", value=interaction.user.mention, inline=True)
             embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=True)
             embed.set_footer(text="Use /boomotp to broadcast")
+            
             await friend.send(embed=embed)
             
             confirm_embed = discord.Embed(
@@ -902,8 +941,9 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
                 description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {friend.mention}",
                 color=discord.Color.green()
             )
-            await interaction.followup.send(embed=confirm_embed, ephemeral=True)
             
+            await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+        
         except Exception as e:
             print(f"Failed to send OTP to friend {friend.id}: {e}")
             embed = discord.Embed(
@@ -912,7 +952,7 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
                 color=discord.Color.red()
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-        
+    
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -922,8 +962,9 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ============================================================================
-# DM ANNOUNCEMENT COMMAND
+# ANNOUNCEMENT COMMANDS
 # ============================================================================
+
 @bot.tree.command(name="dmannounce", description="Send AI-enhanced DM announcement to a user")
 @app_commands.describe(user="User to message", message="Message to send")
 async def slash_dmannounce(interaction: discord.Interaction, user: discord.User, message: str):
@@ -949,6 +990,7 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
         )
         embed.add_field(name="From", value=f"{interaction.user.mention} ({interaction.guild.name})", inline=False)
         embed.set_footer(text="AI-Enhanced")
+        
         await user.send(embed=embed)
         
         confirm_embed = discord.Embed(
@@ -956,8 +998,9 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
             description=f"Message sent to {user.mention}",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
         
+        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+    
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -965,50 +1008,6 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-
-# ============================================================================
-# ANNOUNCEMENT COMMANDS
-# ============================================================================
-@bot.tree.command(name="setupannounce", description="Set the announcement channel (admin only)")
-@app_commands.describe(channel="Channel for announcements")
-async def slash_setupannounce(interaction: discord.Interaction, channel: discord.TextChannel):
-    """Setup announcement channel"""
-    try:
-        if not interaction.user.guild_permissions.administrator:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description="Only administrators can use this command.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
-        if not interaction.guild:
-            embed = discord.Embed(
-                title="❌ Error",
-                description="This command can only be used in a server.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
-        settings = get_guild_settings(interaction.guild.id)
-        settings["announce_channel"] = channel.id
-        
-        embed = discord.Embed(
-            title="✅ Announcement Channel Set",
-            description=f"Announcements will be sent to {channel.mention}",
-            color=discord.Color.green()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        
-    except Exception as e:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="Setup failed",
-            color=discord.Color.red()
-        )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="announce", description="Send AI-enhanced announcement to the configured channel")
 @app_commands.describe(message="Announcement message")
@@ -1047,6 +1046,7 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             return
         
         announce_channel = bot.get_channel(settings["announce_channel"])
+        
         if not announce_channel:
             embed = discord.Embed(
                 title="❌ Channel Not Found",
@@ -1065,6 +1065,7 @@ async def slash_announce(interaction: discord.Interaction, message: str):
         )
         embed.add_field(name="Posted by", value=interaction.user.mention, inline=False)
         embed.set_footer(text="AI-Enhanced Announcement")
+        
         await announce_channel.send(embed=embed)
         
         confirm_embed = discord.Embed(
@@ -1072,8 +1073,9 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             description=f"Message posted to {announce_channel.mention}",
             color=discord.Color.green()
         )
-        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
         
+        await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+    
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -1082,8 +1084,51 @@ async def slash_announce(interaction: discord.Interaction, message: str):
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+@bot.tree.command(name="setupannounce", description="Set the announcement channel (admin only)")
+@app_commands.describe(channel="Channel for announcements")
+async def slash_setupannounce(interaction: discord.Interaction, channel: discord.TextChannel):
+    """Setup announcement channel"""
+    try:
+        if not interaction.user.guild_permissions.administrator:
+            embed = discord.Embed(
+                title="❌ Permission Denied",
+                description="Only administrators can use this command.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        if not interaction.guild:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="This command can only be used in a server.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        settings = get_guild_settings(interaction.guild.id)
+        settings["announce_channel"] = channel.id
+        
+        embed = discord.Embed(
+            title="✅ Announcement Channel Set",
+            description=f"Announcements will be sent to {channel.mention}",
+            color=discord.Color.green()
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="Setup failed",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # ============================================================================
 # START BOT
 # ============================================================================
+
 if __name__ == "__main__":
     bot.run(DISCORD_BOT_TOKEN)
