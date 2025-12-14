@@ -147,7 +147,7 @@ FRIEND_PROFILES = {
     },
     "trunub": {
         "name": "trunub",
-        "title": "yes he is really noob very fat,
+        "title": "yes he is really noob very fat",
         "emoji": "👤"
     },
     "acegamer": {
