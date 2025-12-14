@@ -32,7 +32,7 @@ ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
 # Special user - Anish Vyapari (you!)
-SPECIAL_USER_ID = 1143915237228583738  # Your Discord ID
+SPECIAL_USER_ID = 1265981186283409571  # Your Discord ID
 SPECIAL_USER_NAME = "Anish Vyapari"
 
 # OTP Recipients - IDs of users who should receive OTP
