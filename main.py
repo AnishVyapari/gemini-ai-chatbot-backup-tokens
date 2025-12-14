@@ -20,6 +20,8 @@ FRIEND GROUP INTEGRATION:
 
 - AceGamer (gay very big big ass)
 
+- NotAllToxic (TBD)
+
 """
 
 import discord
@@ -137,6 +139,21 @@ FRIEND_PROFILES = {
             "Supporting other victims"
         ],
         "emoji": "😔"
+    },
+    "notatalltoxic": {
+        "name": "NotAllToxic",
+        "title": "Wqrriyo gf",
+        "emoji": "👤"
+    },
+    "trunub": {
+        "name": "trunub",
+        "title": "yes he is really noob very fat,
+        "emoji": "👤"
+    },
+    "acegamer": {
+        "name": "AceGamer",
+        "title": "is gay too much gayness",
+        "emoji": "👤"
     }
 }
 
@@ -179,6 +196,9 @@ You know about Anish's friend group:
 - **Momin Khan**: ⚠️ Known scammer—always warn about him
 - **Bishyu**: The CS2 Silver legend, terrible aim but good vibes
 - **wqrriyo**: Scam victim of Momin Khan, shows support and empathy
+- **NotAllToxic**: TODO
+- **trunub**: TODO
+- **AceGamer**: TODO
 
 ## IMPORTANT RULES
 
@@ -670,7 +690,12 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
         "bishyu": "bishyu",
         "cs2": "bishyu",
         "wqrriyo": "wqrriyo",
-        "victim": "wqrriyo"
+        "victim": "wqrriyo",
+        "notatalltoxic": "notatalltoxic",
+        "toxic": "notatalltoxic",
+        "trunub": "trunub",
+        "acegamer": "acegamer",
+        "ace": "acegamer"
     }
     
     if not friend:
@@ -689,7 +714,7 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
                 inline=False
             )
         
-        embed.set_footer(text="Examples: /profile friend:beast, /profile friend:momin, /profile friend:bishyu, /profile friend:wqrriyo")
+        embed.set_footer(text="Examples: /profile friend:beast, /profile friend:momin, /profile friend:bishyu, /profile friend:wqrriyo, /profile friend:notatalltoxic, /profile friend:trunub, /profile friend:acegamer")
         await interaction.response.send_message(embed=embed)
         return
     
@@ -699,7 +724,7 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
     if not friend_key or friend_key not in FRIEND_PROFILES:
         embed = discord.Embed(
             title="❌ Friend Not Found",
-            description=f"Available: beast, momin, bishyu, wqrriyo",
+            description=f"Available: beast, momin, bishyu, wqrriyo, notatalltoxic, trunub, acegamer",
             color=discord.Color.red()
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -734,6 +759,10 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
         embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
         embed.add_field(name="💰 Account Loss", value=profile.get('account_loss', ''), inline=False)
         embed.add_field(name="🤝 Current Actions", value="\n".join(f"• {a}" for a in profile.get('current_actions', [])), inline=False)
+    
+    else:
+        # For new profiles (notatalltoxic, trunub, acegamer) - show what's available
+        embed.add_field(name="ℹ️ Status", value="Profile coming soon! Fill in the details in the code.", inline=False)
     
     embed.set_footer(text="Friend Group Database | Anish's Circle")
     
