@@ -403,11 +403,11 @@ async def slash_reset(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
-# CHANNEL MANAGEMENT COMMANDS
+# CHANNEL MANAGEMENT COMMANDS - FIXED
 # ============================================================================
 @bot.tree.command(name="channel", description="Set the channel where bot will chat (admin only)")
-@app_commands.describe(channel_name="Channel name or leave empty to disable restriction")
-async def slash_channel(interaction: discord.Interaction, channel_name: Optional[str] = None):
+@app_commands.describe(channel="Channel to enable bot chat (or leave empty to disable)")
+async def slash_channel(interaction: discord.Interaction, channel: Optional[discord.TextChannel] = None):
     """Set chat channel restriction"""
     # Check if user is admin
     if not interaction.user.guild_permissions.administrator:
@@ -430,7 +430,7 @@ async def slash_channel(interaction: discord.Interaction, channel_name: Optional
     
     settings = get_guild_settings(interaction.guild.id)
     
-    if channel_name is None:
+    if channel is None:
         settings["chat_channel"] = None
         embed = discord.Embed(
             title="✅ Chat Restriction Removed",
@@ -438,17 +438,6 @@ async def slash_channel(interaction: discord.Interaction, channel_name: Optional
             color=discord.Color.green()
         )
     else:
-        # Find channel by name
-        channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
-        if not channel:
-            embed = discord.Embed(
-                title="❌ Channel Not Found",
-                description=f"Could not find channel: {channel_name}",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
         settings["chat_channel"] = channel.id
         embed = discord.Embed(
             title="✅ Chat Channel Set",
@@ -621,11 +610,11 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 # ============================================================================
-# ANNOUNCEMENT COMMANDS
+# ANNOUNCEMENT COMMANDS - FIXED
 # ============================================================================
 @bot.tree.command(name="setupannounce", description="Set the announcement channel (admin only)")
-@app_commands.describe(channel_name="Name of the channel for announcements")
-async def slash_setupannounce(interaction: discord.Interaction, channel_name: str):
+@app_commands.describe(channel="Channel for announcements")
+async def slash_setupannounce(interaction: discord.Interaction, channel: discord.TextChannel):
     """Setup announcement channel"""
     try:
         # Check if user is admin
@@ -642,17 +631,6 @@ async def slash_setupannounce(interaction: discord.Interaction, channel_name: st
             embed = discord.Embed(
                 title="❌ Error",
                 description="This command can only be used in a server.",
-                color=discord.Color.red()
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
-        
-        # Find channel by name
-        channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
-        if not channel:
-            embed = discord.Embed(
-                title="❌ Channel Not Found",
-                description=f"Could not find channel: {channel_name}",
                 color=discord.Color.red()
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
