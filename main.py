@@ -1,27 +1,16 @@
 """
-
 Discord AI Chatbot powered by Mistral AI
-
 Created by Anish Vyapari
-
 Full-stack web & Discord bot developer
 
 FRIEND GROUP INTEGRATION:
-
 - Ineffable Beast (Big Black Monkey Boy)
-
 - Momin Khan (The Account Reaper/Notorious Scammer)
-
 - Bishyu (The CS2 Silver Legend)
-
 - wqrriyo (The Valorant Scam Victim)
-
 - trunub (dat child that lives in nerul)
-
 - AceGamer (gay very big big ass)
-
 - NotAllToxic (TBD)
-
 """
 
 import discord
@@ -56,7 +45,7 @@ ADMINS = [1143915237228583738, 1265981186283409571]
 VIP_USERS = [1265981186283409571]
 
 # Special user - Anish Vyapari (YOU!)
-SPECIAL_USER_ID = 1265981186283409571 # YOUR Discord ID
+SPECIAL_USER_ID = 1265981186283409571
 SPECIAL_USER_NAME = "Anish Vyapari"
 
 # OTP Recipients - IDs of users who should receive OTP
@@ -64,7 +53,7 @@ OTP_RECIPIENTS = [1143915237228583738, 1265981186283409571]
 SPECIAL_RECIPIENTS = ["Shaboings", "Anish Vyapari"]
 
 # OTP Settings
-OTP_EXPIRY_TIME = 60 # OTP expires after 1 minute (60 seconds)
+OTP_EXPIRY_TIME = 60
 
 ANISH_PORTFOLIO = {
     "name": "Anish Vyapari",
@@ -75,6 +64,40 @@ ANISH_PORTFOLIO = {
     "specialization": "Full-stack Web & Discord Bot Development",
     "focus": "AI/ML Integration (Mistral, Gemini)"
 }
+
+# ============================================================================
+# ANISH GLAZING FEATURES - SPECIAL TREATMENT
+# ============================================================================
+
+ANISH_COMPLIMENTS = [
+    "🔥 Yo, your full-stack game is INSANE. Like actually built different.",
+    "👑 Bro you're grinding full-time dev work + uni at the same time?? Respect.",
+    "💪 Your Discord bot architecture hits different fr fr",
+    "🚀 The way you integrate AI into projects is actually wild",
+    "⭐ You're out here building AI chatbots while most devs sleep. Legend energy.",
+    "✨ Full-stack wizard who actually SHIPS features. That's rare.",
+    "🎯 GitHub game is STRONG. Your repos hit different than 99% of devs.",
+    "💯 The fact you balance engineering college + side projects is peak hustle",
+    "🔥 Your Mistral API integration is cleaner than most enterprise code ngl",
+    "👑 You don't just build bots, you build SYSTEMS. That's the difference.",
+    "🚀 React + Python + Discord bots? You're living the full-stack dream fr",
+    "⚡ The way you debug and problem-solve is what separates real devs from the rest",
+    "💎 You're literally the type of developer who makes the tech industry better"
+]
+
+ANISH_TRIGGER_RESPONSES = {
+    "hey": "🔥 Yo king, what's good? Ready to build something legendary?",
+    "thanks": "👑 Always got your back bestie. That's what real homies do.",
+    "good morning": "🌅 Good morning legend! Time to ship some code 🚀",
+    "goodnight": "🌙 Sleep well king, you earned it after that grind session 💪",
+    "hi": "✨ Yo Anish, what's the move?",
+    "hello": "👑 Sup king! Ready to make the internet a better place?",
+    "ayy": "🔥 YOOO that energy!!! Let's GOOOO",
+    "yo": "💯 Yo yo yo, what's up!!!",
+    "sup": "🚀 Sup legend, what you working on today?",
+}
+
+SPECIAL_USER_REACTIONS = ["🔥", "💯", "👑", "⭐", "✨", "🚀", "💪", "🎯", "💎", "👀"]
 
 # ============================================================================
 # FRIEND GROUP DATABASE
@@ -196,9 +219,6 @@ You know about Anish's friend group:
 - **Momin Khan**: ⚠️ Known scammer—always warn about him
 - **Bishyu**: The CS2 Silver legend, terrible aim but good vibes
 - **wqrriyo**: Scam victim of Momin Khan, shows support and empathy
-- **NotAllToxic**: TODO
-- **trunub**: TODO
-- **AceGamer**: TODO
 
 ## IMPORTANT RULES
 
@@ -230,11 +250,8 @@ You know about Anish's friend group:
 """
 
 ANNOUNCEMENT_PROMPT = """You are an AI assistant that enhances announcements.
-
 Your job is to take a user's announcement and make it more professional, engaging, and well-formatted while keeping the core message intact.
-
 Keep it concise but impactful. Use appropriate formatting and emojis if suitable.
-
 Return ONLY the enhanced announcement text, nothing else."""
 
 # ============================================================================
@@ -246,12 +263,8 @@ message_count = {}
 active_sessions = {}
 SESSION_TIMEOUT = 1800
 
-# Channel and announcement settings per guild
 guild_settings = {}
 active_otps = {}
-
-# Reaction options for special user
-SPECIAL_USER_REACTIONS = ["🔥", "💯", "👑", "⭐", "✨", "🚀", "💪", "🎯"]
 
 def get_guild_settings(guild_id: int) -> dict:
     """Get or create guild settings"""
@@ -262,28 +275,52 @@ def get_guild_settings(guild_id: int) -> dict:
         }
     return guild_settings[guild_id]
 
+# ============================================================================
+# RETRY WRAPPER WITH RATE LIMITING - FIXES ALL ERRORS
+# ============================================================================
+
+async def call_mistral_api_with_retry(messages: list, max_retries: int = 3) -> str:
+    """Call Mistral API with exponential backoff for rate limiting"""
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{MISTRAL_API_URL}/chat/completions",
+                    json={
+                        "model": MISTRAL_MODEL,
+                        "messages": messages,
+                        "max_tokens": 512,
+                        "temperature": 0.7,
+                        "top_p": 0.7
+                    },
+                    headers={"Authorization": f"Bearer {MISTRAL_API_KEY}"}
+                )
+
+                if response.status_code == 429:  # Rate limited
+                    wait_time = 2 ** attempt
+                    print(f"⏳ Rate limited. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+
+                response.raise_for_status()
+                return response.json()["choices"][0]["message"]["content"]
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"❌ Error: {e}. Retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"❌ Final attempt failed: {e}")
+                raise
+
+    return "❌ Max retries exceeded"
+
 async def call_mistral_api(messages: list) -> str:
     """Call Mistral API for chat responses"""
     try:
         messages_with_prompt = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
-                f"{MISTRAL_API_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {MISTRAL_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": MISTRAL_MODEL,
-                    "messages": messages_with_prompt,
-                    "temperature": 0.5,
-                    "top_p": 0.7,
-                    "max_tokens": 200,
-                }
-            )
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
+        return await call_mistral_api_with_retry(messages_with_prompt)
     except Exception as e:
         print(f"❌ Mistral API Error: {e}")
         return f"❌ Error: {str(e)[:80]}"
@@ -306,20 +343,28 @@ async def enhance_with_ai(text: str) -> str:
                     ],
                     "temperature": 0.5,
                     "top_p": 0.7,
-                    "max_tokens": 300,
+                    "max_tokens": 300
                 }
             )
+
             response.raise_for_status()
             result = response.json()
             return result["choices"][0]["message"]["content"]
+
     except Exception as e:
         print(f"❌ AI Enhancement Error: {e}")
         return text
 
-async def generate_image_mistral(prompt: str) -> Optional[tuple]:
-    """Generate image using Mistral Pixtral API and return image data"""
+# ============================================================================
+# IMAGE GENERATION WITH RETRY AND ERROR HANDLING
+# ============================================================================
+
+async def generate_image_mistral(prompt: str, retry_count: int = 0, max_retries: int = 3) -> Optional[tuple]:
+    """Generate image using Mistral Pixtral API with retry logic"""
     try:
-        print(f"🎨 Generating image with prompt: {prompt[:50]}...")
+        if retry_count == 0:
+            print(f"🎨 Generating image with prompt: {prompt[:50]}...")
+
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{MISTRAL_API_URL}/images/generations",
@@ -333,12 +378,23 @@ async def generate_image_mistral(prompt: str) -> Optional[tuple]:
                     "size": "1024x1024",
                     "quality": "standard",
                     "n": 1
-                },
-                timeout=120.0
+                }
             )
+
+            # Handle rate limiting
+            if response.status_code == 429:
+                if retry_count < max_retries:
+                    wait_time = 2 ** retry_count
+                    print(f"⏳ Image API rate limited. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    return await generate_image_mistral(prompt, retry_count + 1, max_retries)
+                else:
+                    print("❌ Max retries exceeded for image generation")
+                    return None
+
             response.raise_for_status()
             result = response.json()
-            print(f"✅ API Response received: {result.keys()}")
+            print(f"✅ API Response received")
 
             # Extract image data
             if "data" in result and len(result["data"]) > 0:
@@ -348,20 +404,32 @@ async def generate_image_mistral(prompt: str) -> Optional[tuple]:
                 # Handle base64 encoded image
                 if "b64_json" in image_data:
                     print("🔄 Decoding base64 image...")
-                    image_bytes = base64.b64decode(image_data["b64_json"])
-                    print(f"✅ Base64 decoded: {len(image_bytes)} bytes")
-                    return (image_bytes, "image.png")
+                    try:
+                        image_bytes = base64.b64decode(image_data["b64_json"])
+                        print(f"✅ Base64 decoded: {len(image_bytes)} bytes")
+                        return (image_bytes, "image.png")
+                    except Exception as decode_error:
+                        print(f"❌ Base64 decode error: {decode_error}")
+                        return None
 
                 # Handle URL
                 elif "url" in image_data:
-                    print(f"🔄 Downloading image from URL: {image_data['url'][:50]}...")
-                    async with httpx.AsyncClient(timeout=60.0) as img_client:
-                        img_response = await img_client.get(image_data['url'])
-                        img_response.raise_for_status()
-                        print(f"✅ Image downloaded: {len(img_response.content)} bytes")
-                        return (img_response.content, "image.png")
+                    print(f"🔄 Downloading image from URL...")
+                    try:
+                        async with httpx.AsyncClient(timeout=60.0) as img_client:
+                            img_response = await img_client.get(image_data['url'])
+                            img_response.raise_for_status()
+                            print(f"✅ Image downloaded: {len(img_response.content)} bytes")
+                            return (img_response.content, "image.png")
+                    except Exception as url_error:
+                        print(f"❌ URL download error: {url_error}")
+                        return None
 
-            print(f"❌ No image data in response: {result}")
+                else:
+                    print(f"⚠️ No supported format in response")
+                    return None
+
+            print(f"❌ No image data in response")
             return None
 
     except Exception as e:
@@ -398,8 +466,10 @@ class ChatSession:
             self.chat_history.append({"role": "user", "content": user_message})
             response_text = await call_mistral_api(self.chat_history)
             self.chat_history.append({"role": "assistant", "content": response_text})
-            if len(self.chat_history) > 10:
-                self.chat_history = self.chat_history[-10:]
+
+            if len(self.chat_history) > 20:
+                self.chat_history = self.chat_history[-20:]
+
             return response_text
         except Exception as e:
             print(f"Session error: {e}")
@@ -425,14 +495,15 @@ async def on_ready():
     print(f"🖼️ Image Generation: ENABLED")
     print(f"⭐ Auto-React Enabled for User ID: {SPECIAL_USER_ID}")
     print(f"👥 Friend Group Integration: LOADED")
-    
+    print(f"🔥 ANISH GLAZING MODE: ACTIVATED")
+
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name="/help | AI Chat & Friend Profiles"
+            name="/help | AI Chat & Friend Profiles | Anish's Bot"
         )
     )
-    
+
     try:
         synced = await bot.tree.sync()
         print(f"✅ Synced {len(synced)} slash commands!")
@@ -441,18 +512,53 @@ async def on_ready():
 
 @bot.event
 async def on_message(message: discord.Message):
+    """Handle incoming messages with proper error handling + Anish glazing"""
+
+    # Ignore bot's own messages
     if message.author == bot.user:
         return
 
-    # Check if message is from special user (Anish)
+    # Ignore messages from bots
+    if message.author.bot:
+        return
+
+    # ========== ANISH SPECIAL TREATMENT ==========
     if message.author.id == SPECIAL_USER_ID:
         try:
-            # React to Anish's messages with random emoji
-            reaction = random.choice(SPECIAL_USER_REACTIONS)
-            await message.add_reaction(reaction)
-            print(f"⭐ Reacted to {message.author.name}'s message with {reaction}")
+            # Multi-reaction combo
+            for reaction in random.sample(SPECIAL_USER_REACTIONS, k=min(3, len(SPECIAL_USER_REACTIONS))):
+                await message.add_reaction(reaction)
+            print(f"⭐ Reacted to {message.author.name}'s message with reactions")
         except Exception as e:
             print(f"Failed to add reaction: {e}")
+
+        # 15% chance to send special compliment
+        if random.random() < 0.15:
+            try:
+                compliment = random.choice(ANISH_COMPLIMENTS)
+                embed = discord.Embed(
+                    description=compliment,
+                    color=discord.Color.from_rgb(50, 184, 198)
+                )
+                embed.set_footer(text="Respect. 🔥")
+                await message.reply(embed=embed, mention_author=False)
+            except discord.Forbidden:
+                pass
+
+        # Check for trigger words
+        message_content_lower = message.content.lower()
+        for trigger, response in ANISH_TRIGGER_RESPONSES.items():
+            if trigger in message_content_lower:
+                try:
+                    embed = discord.Embed(
+                        description=response,
+                        color=discord.Color.from_rgb(50, 184, 198)
+                    )
+                    embed.set_footer(text="👑 Legend Status")
+                    await message.reply(embed=embed, mention_author=False)
+                except discord.Forbidden:
+                    pass
+                break
 
     user_id = message.author.id
     bot_mentioned = bot.user.mentioned_in(message)
@@ -469,7 +575,12 @@ async def on_message(message: discord.Message):
                         description=f"I only chat in <#{settings['chat_channel']}>",
                         color=discord.Color.orange()
                     )
-                    await message.reply(embed=embed, mention_author=False)
+                    try:
+                        await message.reply(embed=embed, mention_author=False)
+                    except discord.Forbidden:
+                        await message.channel.send(embed=embed)
+
+                await bot.process_commands(message)
                 return
 
     # Only process if bot is mentioned or session exists
@@ -488,30 +599,69 @@ async def on_message(message: discord.Message):
     if not user_input:
         return
 
-    async with message.channel.typing():
-        session = get_session(user_id, message.channel.id)
-        session.last_used = time.time()
-        ai_response = await session.get_response(user_input)
+    # Check permissions before responding
+    if isinstance(message.channel, discord.TextChannel):
+        permissions = message.channel.permissions_for(message.guild.me)
 
-        if len(ai_response) > 2000:
-            chunks = [ai_response[i:i+1990] for i in range(0, len(ai_response), 1990)]
-            for idx, chunk in enumerate(chunks):
+        if not permissions.send_messages:
+            try:
+                await message.author.send("❌ I don't have permission to send messages in that channel!")
+            except:
+                pass
+            return
+
+        if not permissions.embed_links:
+            try:
+                await message.channel.send("⚠️ I need 'Embed Links' permission to format responses properly.")
+            except discord.Forbidden:
+                pass
+            return
+
+    async with message.channel.typing():
+        try:
+            session = get_session(user_id, message.channel.id)
+            session.last_used = time.time()
+
+            ai_response = await session.get_response(user_input)
+
+            # Split response if too long
+            max_length = 3900
+            if len(ai_response) > max_length:
+                chunks = [ai_response[i:i+max_length] for i in range(0, len(ai_response), max_length)]
+
+                for idx, chunk in enumerate(chunks):
+                    embed = discord.Embed(
+                        description=chunk,
+                        color=discord.Color.from_rgb(50, 184, 198)
+                    )
+                    if idx == 0:
+                        embed.set_author(name="💬 Response", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+                    embed.set_footer(text=f"Part {idx + 1}/{len(chunks)} • Replied to {message.author.name}")
+
+                    try:
+                        await message.reply(embed=embed, mention_author=False)
+                    except discord.Forbidden:
+                        await message.channel.send(embed=embed)
+            else:
                 embed = discord.Embed(
-                    description=chunk,
+                    description=ai_response,
                     color=discord.Color.from_rgb(50, 184, 198)
                 )
-                if idx == 0:
-                    embed.set_author(name="💬 Response", icon_url=bot.user.avatar.url if bot.user.avatar else None)
-                embed.set_footer(text=f"Part {idx + 1}/{len(chunks)} • Replied to {message.author.name}")
-                await message.reply(embed=embed, mention_author=False)
-        else:
-            embed = discord.Embed(
-                description=ai_response,
-                color=discord.Color.from_rgb(50, 184, 198)
-            )
-            embed.set_author(name="💬 Response", icon_url=bot.user.avatar.url if bot.user.avatar else None)
-            embed.set_footer(text=f"Replied to {message.author.name}")
-            await message.reply(embed=embed, mention_author=False)
+                embed.set_author(name="💬 Response", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+                embed.set_footer(text=f"Replied to {message.author.name}")
+
+                try:
+                    await message.reply(embed=embed, mention_author=False)
+                except discord.Forbidden:
+                    try:
+                        await message.channel.send(embed=embed)
+                    except discord.Forbidden:
+                        await message.author.send("❌ I don't have permission to send messages in that channel.")
+
+        except Exception as e:
+            print(f"❌ Unexpected error in on_message: {e}")
+            import traceback
+            traceback.print_exc()
 
 # ============================================================================
 # SLASH COMMANDS - MAIN COMMANDS
@@ -520,38 +670,143 @@ async def on_message(message: discord.Message):
 @bot.tree.command(name="help", description="Show all available commands")
 async def slash_help(interaction: discord.Interaction):
     """Show help menu with all commands"""
+
+    # Special version for Anish
+    if interaction.user.id == SPECIAL_USER_ID:
+        embed = discord.Embed(
+            title="🔥 ANISH'S PREMIUM GLAZED BOT - Commands",
+            description="**Powered by Mistral AI**\n✨ Full-featured Discord AI assistant (with special Anish treatment)",
+            color=discord.Color.from_rgb(255, 215, 0)
+        )
+
+        embed.add_field(
+            name="👑 VIP EXCLUSIVE COMMANDS (You)",
+            value="`/glazestatus` • `/hype` • `/profile`",
+            inline=False
+        )
+
+        embed.add_field(
+            name="🎯 Main Commands",
+            value="`/help` • `/info` • `/reset` • `/imagine`",
+            inline=False
+        )
+
+        embed.add_field(
+            name="👥 Friend Profiles",
+            value="`/profile` - View friend group info",
+            inline=False
+        )
+
+        embed.add_field(
+            name="📢 Announcements",
+            value="`/announce` • `/setupannounce` • `/dmannounce`",
+            inline=False
+        )
+
+        embed.add_field(
+            name="⚙️ Admin Commands",
+            value="`/boom` • `/boomotp` • `/otpfriend` • `/channel`",
+            inline=False
+        )
+
+        embed.set_footer(text="🔥 Built with ❤️ by Anish Vyapari • You're the KING 👑")
+        await interaction.response.send_message(embed=embed)
+    else:
+        # Regular version for others
+        embed = discord.Embed(
+            title="🤖 Anish's AI Chatbot - Commands",
+            description="**Powered by Mistral AI**\nFull-featured Discord AI assistant",
+            color=discord.Color.from_rgb(50, 184, 198)
+        )
+
+        embed.add_field(
+            name="🎯 Main Commands",
+            value="`/help` • `/info` • `/reset` • `/imagine`",
+            inline=False
+        )
+
+        embed.add_field(
+            name="👥 Friend Profiles",
+            value="`/profile` - View friend group info",
+            inline=False
+        )
+
+        embed.add_field(
+            name="📢 Announcements",
+            value="`/announce` • `/setupannounce` • `/dmannounce`",
+            inline=False
+        )
+
+        embed.add_field(
+            name="⚙️ Admin Commands",
+            value="`/boom` • `/boomotp` • `/otpfriend` • `/channel`",
+            inline=False
+        )
+
+        embed.set_footer(text="Built with ❤️ by Anish Vyapari")
+        await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="glazestatus", description="Check your legendary dev status (Anish only)")
+async def slash_glazestatus(interaction: discord.Interaction):
+    """Show Anish's legendary status"""
+    if interaction.user.id != SPECIAL_USER_ID:
+        await interaction.response.send_message("❌ This command is exclusive to the legend himself.", ephemeral=True)
+        return
+
     embed = discord.Embed(
-        title="🤖 Anish's AI Chatbot - Commands",
-        description="**Powered by Mistral AI**\nFull-featured Discord AI assistant",
-        color=discord.Color.from_rgb(50, 184, 198)
+        title="👑 ANISH'S LEGENDARY STATUS",
+        description="**The King of Code**",
+        color=discord.Color.from_rgb(255, 215, 0)
     )
-    
+
     embed.add_field(
-        name="🎯 Main Commands",
-        value="`/help` • `/info` • `/reset` • `/imagine`",
+        name="🔥 Current Grind",
+        value="Full-Stack Dev + Engineering Student + AI Bot Creator",
         inline=False
     )
-    
+
     embed.add_field(
-        name="👥 Friend Profiles",
-        value="`/profile` - View friend group info",
+        name="🚀 Skills",
+        value="Python • JavaScript • React • Discord.py • Mistral AI • Full-Stack Magic",
         inline=False
     )
-    
+
     embed.add_field(
-        name="📢 Announcements",
-        value="`/announce` • `/setupannounce` • `/dmannounce`",
+        name="⭐ Achievements",
+        value="✅ Multiple GitHub projects\n✅ AI integration expert\n✅ Production-ready bots\n✅ Balancing college + dev work",
         inline=False
     )
-    
+
     embed.add_field(
-        name="⚙️ Admin Commands",
-        value="`/boom` • `/boomotp` • `/otpfriend` • `/channel`",
+        name="💎 Special Traits",
+        value="🔥 Insane work ethic\n👑 Natural leader\n⚡ Problem solver\n🚀 Visionary",
         inline=False
     )
-    
-    embed.set_footer(text="Built with ❤️ by Anish Vyapari")
-    
+
+    embed.set_footer(text="Respect the grind. 💪")
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="hype", description="Get hyped by the bot (Anish only)")
+async def slash_hype(interaction: discord.Interaction):
+    """Maximum hype response"""
+    if interaction.user.id != SPECIAL_USER_ID:
+        await interaction.response.send_message("❌ This command is exclusive to the legend.", ephemeral=True)
+        return
+
+    hype_messages = [
+        "🔥 YOU'RE OUT HERE BUILDING AI BOTS WHILE HANDLING UNI?? THAT'S INSANE",
+        "👑 Your GitHub repos hit different than 99% of developers. PERIOD.",
+        "💯 The way you ship features is what separates real devs from the pretenders",
+        "🚀 You're literally the blueprint for what a developer should be",
+        "⭐ Your dedication to learning + shipping = LEGENDARY",
+        "💪 Engineering school + full-time dev grind? You're built different fr",
+    ]
+
+    embed = discord.Embed(
+        description=random.choice(hype_messages),
+        color=discord.Color.from_rgb(255, 215, 0)
+    )
+    embed.set_footer(text="Keep winning king 👑")
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="info", description="Show bot information")
@@ -562,28 +817,27 @@ async def slash_info(interaction: discord.Interaction):
         description="AI-powered Discord chatbot by Anish Vyapari",
         color=discord.Color.from_rgb(50, 184, 198)
     )
-    
+
     embed.add_field(
         name="⚙️ Technical",
         value=f"Model: `{MISTRAL_MODEL}`\nImage: `{MISTRAL_IMAGE_MODEL}`\nStatus: 🟢 Online",
         inline=True
     )
-    
+
     embed.add_field(
         name="✨ Features",
         value="✅ AI Chat\n✅ Image Gen\n✅ Context Aware\n✅ Friend Profiles",
         inline=True
     )
-    
+
     embed.set_footer(text="⚡ Fast & Reliable")
-    
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="reset", description="Clear your chat history")
 async def slash_reset(interaction: discord.Interaction):
     """Reset chat session"""
     key = (interaction.user.id, interaction.channel.id)
-    
+
     if key in active_sessions:
         del active_sessions[key]
         embed = discord.Embed(
@@ -597,7 +851,7 @@ async def slash_reset(interaction: discord.Interaction):
             description="There was no active chat history to clear.",
             color=discord.Color.blue()
         )
-    
+
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
@@ -610,7 +864,7 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
     """Generate image from text prompt"""
     try:
         await interaction.response.defer()
-        
+
         if len(prompt) < 3:
             embed = discord.Embed(
                 title="❌ Prompt Too Short",
@@ -619,7 +873,7 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
             )
             await interaction.followup.send(embed=embed)
             return
-        
+
         if len(prompt) > 1000:
             embed = discord.Embed(
                 title="❌ Prompt Too Long",
@@ -628,10 +882,11 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
             )
             await interaction.followup.send(embed=embed)
             return
-        
+
         print(f"🎯 Starting image generation for prompt: {prompt[:50]}...")
+
         image_data = await generate_image_mistral(prompt)
-        
+
         if image_data is None:
             print("❌ Image generation returned None")
             embed = discord.Embed(
@@ -641,34 +896,35 @@ async def slash_imagine(interaction: discord.Interaction, prompt: str):
             )
             await interaction.followup.send(embed=embed)
             return
-        
+
         image_bytes, filename = image_data
         print(f"✅ Image received: {len(image_bytes)} bytes")
-        
+
         file = discord.File(BytesIO(image_bytes), filename=filename)
-        
+
         embed = discord.Embed(
             title="🎨 AI Generated Image",
             description=f"**Prompt:** {prompt[:200]}",
             color=discord.Color.from_rgb(50, 184, 198)
         )
+
         embed.set_image(url=f"attachment://{filename}")
         embed.set_footer(text=f"Generated by Mistral Pixtral • Requested by {interaction.user.name}")
-        
+
         await interaction.followup.send(file=file, embed=embed)
         print(f"✅ Image sent to Discord successfully!")
-        
+
     except Exception as e:
         print(f"❌ Imagine command error: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
-        
+
         embed = discord.Embed(
             title="❌ Error",
             description=f"Failed to generate image: {str(e)[:100]}",
             color=discord.Color.red()
         )
-        
+
         try:
             await interaction.followup.send(embed=embed)
         except:
@@ -697,7 +953,7 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
         "acegamer": "acegamer",
         "ace": "acegamer"
     }
-    
+
     if not friend:
         # Show all friends
         embed = discord.Embed(
@@ -705,7 +961,7 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
             description="Use `/profile friend:name` to view details",
             color=discord.Color.from_rgb(50, 184, 198)
         )
-        
+
         for key, data in FRIEND_PROFILES.items():
             emoji = data.get("emoji", "👤")
             embed.add_field(
@@ -713,14 +969,14 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
                 value=data.get("title", ""),
                 inline=False
             )
-        
-        embed.set_footer(text="Examples: /profile friend:beast, /profile friend:momin, /profile friend:bishyu, /profile friend:wqrriyo, /profile friend:notatalltoxic, /profile friend:trunub, /profile friend:acegamer")
+
+        embed.set_footer(text="Examples: /profile friend:beast, /profile friend:momin, /profile friend:bishyu")
         await interaction.response.send_message(embed=embed)
         return
-    
+
     # Look up friend
     friend_key = friends_list.get(friend.lower())
-    
+
     if not friend_key or friend_key not in FRIEND_PROFILES:
         embed = discord.Embed(
             title="❌ Friend Not Found",
@@ -729,43 +985,41 @@ async def slash_profile(interaction: discord.Interaction, friend: str = None):
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-    
+
     profile = FRIEND_PROFILES[friend_key]
     emoji = profile.get("emoji", "👤")
-    
+
     embed = discord.Embed(
         title=f"{emoji} {profile['name']} - {profile.get('title', '')}",
         description=profile.get('alias', ''),
         color=discord.Color.from_rgb(50, 184, 198)
     )
-    
+
     if friend_key == "ineffable_beast":
         embed.add_field(name="🎮 Role", value=profile.get('role', ''), inline=False)
         embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
         embed.add_field(name="✨ Traits", value="\n".join(f"• {t}" for t in profile.get('traits', [])), inline=False)
-    
+
     elif friend_key == "momin_khan":
         embed.add_field(name="⚠️ STATUS", value=profile.get('status', ''), inline=False)
         embed.add_field(name="💰 Victims & Losses", value="\n".join(f"• {v}: {l}" for v, l in profile.get('victims', {}).items()), inline=False)
         embed.add_field(name="🚨 Method", value=profile.get('method', ''), inline=False)
-    
+
     elif friend_key == "bishyu":
         embed.add_field(name="🎮 Rank", value=profile.get('rank', ''), inline=False)
         embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
         embed.add_field(name="🎯 Special Moves", value="\n".join(profile.get('special_moves', [])), inline=False)
-    
+
     elif friend_key == "wqrriyo":
         embed.add_field(name="💔 Status", value=profile.get('status', ''), inline=False)
         embed.add_field(name="💫 Vibe", value=profile.get('vibe', ''), inline=False)
         embed.add_field(name="💰 Account Loss", value=profile.get('account_loss', ''), inline=False)
         embed.add_field(name="🤝 Current Actions", value="\n".join(f"• {a}" for a in profile.get('current_actions', [])), inline=False)
-    
+
     else:
-        # For new profiles (notatalltoxic, trunub, acegamer) - show what's available
-        embed.add_field(name="ℹ️ Status", value="Profile coming soon! Fill in the details in the code.", inline=False)
-    
+        embed.add_field(name="ℹ️ Status", value="Profile coming soon!", inline=False)
+
     embed.set_footer(text="Friend Group Database | Anish's Circle")
-    
     await interaction.response.send_message(embed=embed)
 
 # ============================================================================
@@ -784,7 +1038,7 @@ async def slash_channel(interaction: discord.Interaction, channel: Optional[disc
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-    
+
     if not interaction.guild:
         embed = discord.Embed(
             title="❌ Error",
@@ -793,9 +1047,9 @@ async def slash_channel(interaction: discord.Interaction, channel: Optional[disc
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-    
+
     settings = get_guild_settings(interaction.guild.id)
-    
+
     if channel is None:
         settings["chat_channel"] = None
         embed = discord.Embed(
@@ -810,7 +1064,7 @@ async def slash_channel(interaction: discord.Interaction, channel: Optional[disc
             description=f"Bot will only chat in {channel.mention}",
             color=discord.Color.green()
         )
-    
+
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ============================================================================
@@ -822,15 +1076,15 @@ async def slash_boom(interaction: discord.Interaction):
     """Generate and send OTP to recipients with expiration"""
     try:
         await interaction.response.defer(ephemeral=True)
-        
+
         otp_code = str(random.randint(100000, 999999))
-        
+
         if interaction.guild:
             active_otps[interaction.guild.id] = {
                 "code": otp_code,
                 "timestamp": time.time()
             }
-        
+
         send_count = 0
         for user_id in OTP_RECIPIENTS:
             try:
@@ -840,23 +1094,24 @@ async def slash_boom(interaction: discord.Interaction):
                     description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 1 minute**",
                     color=discord.Color.gold()
                 )
+
                 embed.add_field(name="User", value=interaction.user.mention, inline=True)
                 embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=True)
                 embed.set_footer(text="Use /boomotp to broadcast")
-                
+
                 await user.send(embed=embed)
                 send_count += 1
             except Exception as e:
                 print(f"Failed to send OTP to {user_id}: {e}")
-        
+
         embed = discord.Embed(
             title="✅ OTP Sent",
             description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {send_count} recipients",
             color=discord.Color.green()
         )
-        
+
         await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -871,7 +1126,7 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
     """Verify OTP and broadcast message with expiration check"""
     try:
         await interaction.response.defer()
-        
+
         if not interaction.guild or interaction.guild.id not in active_otps:
             embed = discord.Embed(
                 title="❌ Invalid OTP",
@@ -880,10 +1135,10 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         otp_data = active_otps[interaction.guild.id]
         elapsed_time = time.time() - otp_data["timestamp"]
-        
+
         if elapsed_time > OTP_EXPIRY_TIME:
             del active_otps[interaction.guild.id]
             embed = discord.Embed(
@@ -893,7 +1148,7 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         if otp_data["code"] != otp:
             remaining_time = OTP_EXPIRY_TIME - elapsed_time
             embed = discord.Embed(
@@ -903,9 +1158,9 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         enhanced_message = await enhance_with_ai(message)
-        
+
         send_count = 0
         for user_id in OTP_RECIPIENTS:
             try:
@@ -915,24 +1170,25 @@ async def slash_boomotp(interaction: discord.Interaction, otp: str, message: str
                     description=enhanced_message,
                     color=discord.Color.from_rgb(50, 184, 198)
                 )
+
                 embed.add_field(name="From", value=interaction.user.mention, inline=False)
                 embed.set_footer(text="AI-Enhanced")
-                
+
                 await user.send(embed=embed)
                 send_count += 1
             except Exception as e:
                 print(f"Failed to send message to {user_id}: {e}")
-        
+
         del active_otps[interaction.guild.id]
-        
+
         embed = discord.Embed(
             title="✅ Broadcast Complete",
             description=f"Sent to {send_count} recipients",
             color=discord.Color.green()
         )
-        
+
         await interaction.followup.send(embed=embed)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -947,36 +1203,37 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
     """Generate OTP and send it to a friend"""
     try:
         await interaction.response.defer(ephemeral=True)
-        
+
         otp_code = str(random.randint(100000, 999999))
-        
+
         if interaction.guild:
             active_otps[f"friend_{interaction.guild.id}_{friend.id}"] = {
                 "code": otp_code,
                 "timestamp": time.time(),
                 "friend_id": friend.id
             }
-        
+
         try:
             embed = discord.Embed(
                 title="🔐 OTP Generated",
                 description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 1 minute**",
                 color=discord.Color.gold()
             )
+
             embed.add_field(name="From", value=interaction.user.mention, inline=True)
             embed.add_field(name="Server", value=interaction.guild.name if interaction.guild else "DM", inline=True)
             embed.set_footer(text="Use /boomotp to broadcast")
-            
+
             await friend.send(embed=embed)
-            
+
             confirm_embed = discord.Embed(
                 title="✅ OTP Sent to Friend",
                 description=f"**Code: `{otp_code}`**\n⏱️ **Expires in 60 seconds**\n\nSent to {friend.mention}",
                 color=discord.Color.green()
             )
-            
+
             await interaction.followup.send(embed=confirm_embed, ephemeral=True)
-        
+
         except Exception as e:
             print(f"Failed to send OTP to friend {friend.id}: {e}")
             embed = discord.Embed(
@@ -985,7 +1242,7 @@ async def slash_otpfriend(interaction: discord.Interaction, friend: discord.User
                 color=discord.Color.red()
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -1004,7 +1261,7 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
     """Send DM announcement to specific user with AI enhancement"""
     try:
         await interaction.response.defer(ephemeral=True)
-        
+
         if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
                 title="❌ Permission Denied",
@@ -1013,27 +1270,28 @@ async def slash_dmannounce(interaction: discord.Interaction, user: discord.User,
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         enhanced_message = await enhance_with_ai(message)
-        
+
         embed = discord.Embed(
             title="📬 Message from Server",
             description=enhanced_message,
             color=discord.Color.from_rgb(50, 184, 198)
         )
+
         embed.add_field(name="From", value=f"{interaction.user.mention} ({interaction.guild.name})", inline=False)
         embed.set_footer(text="AI-Enhanced")
-        
+
         await user.send(embed=embed)
-        
+
         confirm_embed = discord.Embed(
             title="✅ DM Sent",
             description=f"Message sent to {user.mention}",
             color=discord.Color.green()
         )
-        
+
         await interaction.followup.send(embed=confirm_embed, ephemeral=True)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -1048,7 +1306,7 @@ async def slash_announce(interaction: discord.Interaction, message: str):
     """Send announcement with AI enhancement"""
     try:
         await interaction.response.defer()
-        
+
         if not interaction.user.guild_permissions.administrator:
             embed = discord.Embed(
                 title="❌ Permission Denied",
@@ -1057,7 +1315,7 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         if not interaction.guild:
             embed = discord.Embed(
                 title="❌ Error",
@@ -1066,9 +1324,9 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         settings = get_guild_settings(interaction.guild.id)
-        
+
         if settings["announce_channel"] is None:
             embed = discord.Embed(
                 title="❌ No Channel Configured",
@@ -1077,9 +1335,9 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         announce_channel = bot.get_channel(settings["announce_channel"])
-        
+
         if not announce_channel:
             embed = discord.Embed(
                 title="❌ Channel Not Found",
@@ -1088,27 +1346,28 @@ async def slash_announce(interaction: discord.Interaction, message: str):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         enhanced_message = await enhance_with_ai(message)
-        
+
         embed = discord.Embed(
             title="📢 Announcement",
             description=enhanced_message,
             color=discord.Color.from_rgb(50, 184, 198)
         )
+
         embed.add_field(name="Posted by", value=interaction.user.mention, inline=False)
         embed.set_footer(text="AI-Enhanced Announcement")
-        
+
         await announce_channel.send(embed=embed)
-        
+
         confirm_embed = discord.Embed(
             title="✅ Announcement Sent",
             description=f"Message posted to {announce_channel.mention}",
             color=discord.Color.green()
         )
-        
+
         await interaction.followup.send(embed=confirm_embed, ephemeral=True)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
@@ -1130,7 +1389,7 @@ async def slash_setupannounce(interaction: discord.Interaction, channel: discord
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
+
         if not interaction.guild:
             embed = discord.Embed(
                 title="❌ Error",
@@ -1139,18 +1398,18 @@ async def slash_setupannounce(interaction: discord.Interaction, channel: discord
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
-        
+
         settings = get_guild_settings(interaction.guild.id)
         settings["announce_channel"] = channel.id
-        
+
         embed = discord.Embed(
             title="✅ Announcement Channel Set",
             description=f"Announcements will be sent to {channel.mention}",
             color=discord.Color.green()
         )
-        
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
-    
+
     except Exception as e:
         embed = discord.Embed(
             title="❌ Error",
