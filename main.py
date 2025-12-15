@@ -604,44 +604,64 @@ async def generate_roast_mistral(target_user: str = None) -> str:
         return random.choice(ROAST_TEMPLATES).format(user=target_user or "You")
 
 async def generate_image_mistral(prompt: str, retry_count: int = 0, max_retries: int = 3) -> Optional[tuple]:
-    """Generate image using Mistral API"""
+    """Generate image using HuggingFace Inference API - supports 30+ generations per day"""
     try:
         if retry_count == 0:
             print(f"🎨 Starting image generation: {prompt[:50]}...")
-
+        
+        if not HUGGINGFACE_API_KEY:
+            print("❌ HuggingFace API key not configured!")
+            return None
+        
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            response = await client.post(
-                f"{MISTRAL_API_URL}/images/generations",
-                headers={
-                    "Authorization": f"Bearer {MISTRAL_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "pixtral-12b-2409",
-                    "prompt": prompt,
-                    "size": "1024x1024",
-                    "quality": "standard",
-                    "n": 1
-                }
-            )
-
-            if response.status_code == 429:
+            # Using Stable Diffusion v1.5 - supports unlimited inferences
+            hf_api_url = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+            
+            headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+            
+            payload = {"inputs": prompt}
+            
+            try:
+                response = await client.post(
+                    hf_api_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=120.0
+                )
+                
+                if response.status_code == 503:
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count
+                        print(f"⏳ Model loading... Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        return await generate_image_mistral(prompt, retry_count + 1, max_retries)
+                    return None
+                
+                if response.status_code == 429:
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count
+                        print(f"⏳ Rate limited. Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        return await generate_image_mistral(prompt, retry_count + 1, max_retries)
+                    return None
+                
+                response.raise_for_status()
+                image_bytes = response.content
+                print(f"✅ Generated image: {len(image_bytes)} bytes")
+                return (image_bytes, "generated_image.png")
+                
+            except Exception as e:
+                print(f"❌ HuggingFace API Error: {e}")
                 if retry_count < max_retries:
                     wait_time = 2 ** retry_count
-                    print(f"⏳ Image API rate limited. Retrying in {wait_time}s...")
+                    print(f"⏳ Retrying in {wait_time}s...")
                     await asyncio.sleep(wait_time)
                     return await generate_image_mistral(prompt, retry_count + 1, max_retries)
-                else:
-                    print("❌ Max retries exceeded for image generation")
-                    return None
-
-            response.raise_for_status()
-            result = response.json()
-
-            if "data" in result and len(result["data"]) > 0:
-                image_data = result["data"][0]
+                return None
                 
-                if "b64_json" in image_data:
+    except Exception as e:
+        print(f"❌ Image Generation Error: {e}")
+        return None
                     try:
                         image_bytes = base64.b64decode(image_data["b64_json"])
                         print(f"✅ Generated image: {len(image_bytes)} bytes")
