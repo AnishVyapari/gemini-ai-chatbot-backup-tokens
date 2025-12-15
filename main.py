@@ -662,30 +662,7 @@ async def generate_image_mistral(prompt: str, retry_count: int = 0, max_retries:
     except Exception as e:
         print(f"❌ Image Generation Error: {e}")
         return None
-                    try:
-                        image_bytes = base64.b64decode(image_data["b64_json"])
-                        print(f"✅ Generated image: {len(image_bytes)} bytes")
-                        return (image_bytes, "generated_image.png")
-                    except Exception as decode_error:
-                        print(f"❌ Base64 decode error: {decode_error}")
-                        return None
-                        
-                elif "url" in image_data:
-                    try:
-                        async with httpx.AsyncClient(timeout=60.0) as img_client:
-                            img_response = await img_client.get(image_data["url"])
-                            img_response.raise_for_status()
-                            print(f"✅ Downloaded image: {len(img_response.content)} bytes")
-                            return (img_response.content, "generated_image.png")
-                    except Exception as url_error:
-                        print(f"❌ URL download error: {url_error}")
-                        return None
-
-    except Exception as e:
-        print(f"❌ Image Generation Error: {e}")
-
-    return None
-
+                            
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ★ DISCORD BOT SETUP
