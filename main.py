@@ -91,6 +91,7 @@ from enum import Enum
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 if not DISCORD_BOT_TOKEN:
     raise RuntimeError("❌ DISCORD_BOT_TOKEN is not set")
