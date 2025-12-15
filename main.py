@@ -615,19 +615,11 @@ async def generate_image_mistral(prompt: str, retry_count: int = 0, max_retries:
         
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
             # Using Stable Diffusion v1.5 - supports unlimited inferences
-            hf_api_url = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
-            
-            headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-            
-            payload = {"inputs": prompt}
+        hf_api_url = "https://image.pollinations.ai/prompt/{}".format(prompt.replace(' ', '%20'))
+        
             
             try:
-                response = await client.post(
-                    hf_api_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=120.0
-                )
+                response = await client.get(hf_api_url, timeout=120.0)
                 
                 if response.status_code == 503:
                     if retry_count < max_retries:
@@ -678,6 +670,109 @@ intents.guilds = True
 bot = commands.Bot(command_prefix=BOT_PREFIX, intents=intents, help_command=None)
 
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ★ SERVER SETUP COMMAND (AUTO-SETUP TICKETS & ROLES)
+# ═════════════════════════════════════════════════════════════════════════════════
+
+@bot.command(name="setup", description="Auto-setup ticket system with roles and channels")
+@commands.has_permissions(administrator=True)
+async def setup_server(ctx):
+    """Automatically setup the server with ticket verification roles and channels."""
+    
+    try:
+        guild = ctx.guild
+        
+        # Define role names
+        VERIFIED_ROLE = "✅ Verified"
+        ADMIN_ROLE = "🛡️ Admins"
+        MODS_ROLE = "👮 Moderators"
+        
+        # Define category and channel names
+        TICKETS_CATEGORY = "🎫 Tickets"
+        VERIFICATION_CHANNEL = "✅-verification"
+        GENERAL_CHANNEL = "💬-general"
+        ANNOUNCEMENTS_CHANNEL = "📢-announcements"
+        SUPPORT_CHANNEL = "🆘-support"
+        
+        # Create roles if they don't exist
+        roles_to_create = [VERIFIED_ROLE, ADMIN_ROLE, MODS_ROLE]
+        created_roles = {}
+        
+        for role_name in roles_to_create:
+            existing_role = discord.utils.get(guild.roles, name=role_name)
+            if existing_role:
+                created_roles[role_name] = existing_role
+            else:
+                if "Verified" in role_name:
+                    role = await guild.create_role(name=role_name, color=discord.Color.green())
+                elif "Admin" in role_name:
+                    role = await guild.create_role(name=role_name, color=discord.Color.red())
+                else:
+                    role = await guild.create_role(name=role_name, color=discord.Color.blue())
+                created_roles[role_name] = role
+                await ctx.send(f"✅ Created role: {role_name}")
+        
+        # Create category for tickets
+        tickets_category = discord.utils.get(guild.categories, name=TICKETS_CATEGORY)
+        if not tickets_category:
+            tickets_category = await guild.create_category(TICKETS_CATEGORY)
+            await ctx.send(f"✅ Created category: {TICKETS_CATEGORY}")
+        
+        # Create channels
+        channels_to_create = [
+            (VERIFICATION_CHANNEL, None),  # In root (no category)
+            (GENERAL_CHANNEL, None),
+            (ANNOUNCEMENTS_CHANNEL, None),
+            (SUPPORT_CHANNEL, tickets_category),
+        ]
+        
+        for channel_name, category in channels_to_create:
+            existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
+            if not existing_channel:
+                if category:
+                    channel = await guild.create_text_channel(channel_name, category=category)
+                else:
+                    channel = await guild.create_text_channel(channel_name)
+                await ctx.send(f"✅ Created channel: #{channel_name}")
+            else:
+                await ctx.send(f"⚠️ Channel already exists: #{channel_name}")
+        
+        # Setup verification channel if it exists
+        verification_channel = discord.utils.get(guild.text_channels, name=VERIFICATION_CHANNEL)
+        if verification_channel:
+            # Set channel permissions
+            await verification_channel.edit(topic="React to verify and get access to the server!")
+            
+            # Send verification message
+            verify_embed = discord.Embed(
+                title="✅ Server Verification",
+                description="Click the reaction below to verify and get access to the server!",
+                color=discord.Color.green()
+            )
+            verify_embed.add_field(name="Reaction", value="React with ✅ to verify", inline=False)
+            
+            msg = await verification_channel.send(embed=verify_embed)
+            await msg.add_reaction("✅")
+        
+        # Final confirmation
+        embed = discord.Embed(
+            title="🎉 Server Setup Complete!",
+            description="The server has been successfully configured.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Roles Created", value=f"{len(created_roles)} roles", inline=True)
+        embed.add_field(name="Channels Created", value=f"{len(channels_to_create)} channels", inline=True)
+        embed.add_field(name="Category Created", value=TICKETS_CATEGORY, inline=True)
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        await ctx.send(f"❌ Setup failed: {e}")
+        print(f"Setup error: {e}")
+
+
+
 
 # ★ CHAT SESSION MANAGEMENT
 
