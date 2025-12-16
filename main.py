@@ -538,8 +538,7 @@ async def setup_server(ctx):
 
 # ★ CHAT SESSION MANAGEMENT
 
-class ChatSession:
-    def __init__(self, user_id: int, channel_id: int):
+@bot.event    def __init__(self, user_id: int, channel_id: int):
         self.user_id = user_id
         self.channel_id = channel_id
         self.chat_history = []
@@ -567,6 +566,139 @@ def get_session(user_id: int, channel_id: int) -> ChatSession:
 # ═══════════════════════════════════════════════════════════════════════════════
 # ★ BOT EVENTS
 # ═══════════════════════════════════════════════════════════════════════════════
+
+@bot.tree.command(name="setup", description="🚀 Universal server setup - Auto-creates all channels, roles, and systems")
+@app_commands.checks.has_permissions(administrator=True)
+async def slash_universal_setup(interaction: discord.Interaction):
+    """Auto-setup complete server: verification, tickets, roles, channels"""
+    if not interaction.guild:
+        await interaction.response.send_message("❌ This command only works in servers", ephemeral=True)
+        return
+    
+    await interaction.response.defer()
+    
+    try:
+        guild = interaction.guild
+        guild_id = guild.id
+        
+        # ✅ STEP 1: Create Roles
+        roles_to_create = [
+            ("✅ Verified", discord.Color.green()),
+            ("🛡️ Admins", discord.Color.red()),
+            ("👮 Moderators", discord.Color.blue()),
+            ("🎯 Support", discord.Color.gold()),
+        ]
+        
+        created_roles = {}
+        for role_name, color in roles_to_create:
+            existing_role = discord.utils.get(guild.roles, name=role_name)
+            if existing_role:
+                created_roles[role_name] = existing_role
+            else:
+                role = await guild.create_role(name=role_name, color=color)
+                created_roles[role_name] = role
+                if guild_id not in bot_created_roles:
+                    bot_created_roles[guild_id] = []
+                bot_created_roles[guild_id].append(role.id)
+        
+        # ✅ STEP 2: Create Categories
+        categories_to_create = {
+            "🎫 Tickets": [],
+            "🛠️ Admin": [],
+        }
+        
+        created_categories = {}
+        for cat_name in categories_to_create.keys():
+            existing_cat = discord.utils.get(guild.categories, name=cat_name)
+            if existing_cat:
+                created_categories[cat_name] = existing_cat
+            else:
+                category = await guild.create_category(cat_name)
+                created_categories[cat_name] = category
+        
+        # ✅ STEP 3: Create Channels
+        channels_to_create = [
+            ("✅-verify", None, created_roles["✅ Verified"]),
+            ("💬-general", None, None),
+            ("📢-announcements", None, None),
+            ("🆘-support", created_categories.get("🎫 Tickets"), None),
+            ("🤖-bot-commands", None, None),
+            ("📊-server-stats", None, None),
+            ("⚙️-admin-logs", created_categories.get("🛠️ Admin"), None),
+        ]
+        
+        for channel_name, category, verify_role in channels_to_create:
+            existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
+            if not existing_channel:
+                overwrites = {}
+                if verify_role and channel_name == "✅-verify":
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=True, send_messages=False),
+                        guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+                    }
+                elif verify_role:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                        verify_role: discord.PermissionOverwrite(view_channel=True),
+                        guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True)
+                    }
+                
+                channel = await guild.create_text_channel(
+                    channel_name,
+                    category=category,
+                    overwrites=overwrites if overwrites else None
+                )
+                if guild_id not in bot_created_channels:
+                    bot_created_channels[guild_id] = []
+                bot_created_channels[guild_id].append(channel.id)
+        
+        # ✅ STEP 4: Setup Verification
+        settings = get_guild_settings(guild_id)
+        verify_channel = discord.utils.get(guild.text_channels, name="✅-verify")
+        verify_role = created_roles.get("✅ Verified")
+        
+        if verify_channel and verify_role:
+            settings["verify_channel"] = verify_channel.id
+            settings["verify_role"] = verify_role.id
+            
+            verify_embed = discord.Embed(
+                title="🔐 Welcome to the Server!",
+                description="Click `/verify` to verify and gain access to the server",
+                color=discord.Color.green()
+            )
+            verify_embed.add_field(name="What you get:", value="✅ Access to all channels\n✅ Community membership", inline=False)
+            verify_embed.set_footer(text="One-time verification required")
+            
+            await verify_channel.send(embed=verify_embed)
+        
+        # ✅ STEP 5: Setup Announcements
+        announce_channel = discord.utils.get(guild.text_channels, name="📢-announcements")
+        if announce_channel:
+            settings["announce_channel"] = announce_channel.id
+        
+        # ✅ Send Completion Summary
+        summary_embed = discord.Embed(
+            title="🎉 Server Setup Complete!",
+            description="✅ All systems configured successfully",
+            color=discord.Color.green()
+        )
+        summary_embed.add_field(name="✅ Roles Created", value=f"{len(created_roles)} roles", inline=True)
+        summary_embed.add_field(name="📁 Categories", value=f"{len(created_categories)} categories", inline=True)
+        summary_embed.add_field(name="📍 Channels", value=f"{len(channels_to_create)} channels", inline=True)
+        summary_embed.add_field(name="🔧 Systems Enabled", value="Verification ✓\nTickets Ready ✓\nAnnouncements ✓", inline=False)
+        summary_embed.set_footer(text="Use /help to see all commands")
+        
+        await interaction.followup.send(embed=summary_embed)
+        
+    except Exception as e:
+        print(f"❌ Setup error: {e}")
+        embed = discord.Embed(
+            title="❌ Setup Failed",
+            description=f"Error: {str(e)[:100]}",
+            color=discord.Color.red()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 @bot.event
 async def on_ready():
