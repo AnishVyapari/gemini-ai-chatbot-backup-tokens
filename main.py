@@ -478,31 +478,31 @@ async def on_message(message: discord.Message):
             pass
         
             if random.random() < 0.15:
-            try:
-                compliment = random.choice(ANISH_COMPLIMENTS)
-                embed = discord.Embed(
-                    description=compliment,
-                    color=discord.Color.from_rgb(255, 215, 0)
-                )
-                embed.set_footer(text="Respect. 🔥")
-                await message.reply(embed=embed, mention_author=False)
-            except:
-                pass
-    
-    # Check for trigger words
-    message_content_lower = message.content.lower()
-    for trigger, response in ANISH_TRIGGER_RESPONSES.items():
-        if trigger in message_content_lower:
-            try:
-                embed = discord.Embed(
-                    description=response,
-                    color=discord.Color.from_rgb(50, 184, 198)
-                )
-                embed.set_footer(text="👑 Legend Status")
-                await message.reply(embed=embed, mention_author=False)
-            except:
-                pass
-            break
+                try:
+                    compliment = random.choice(ANISH_COMPLIMENTS)
+                    embed = discord.Embed(
+                        description=compliment,
+                        color=discord.Color.from_rgb(255, 215, 0)
+                    )
+                    embed.set_footer(text="Respect. 🔥")
+                    await message.reply(embed=embed, mention_author=False)
+                except:
+                    pass
+        
+        # Check for trigger words
+        message_content_lower = message.content.lower()
+        for trigger, response in ANISH_TRIGGER_RESPONSES.items():
+            if trigger in message_content_lower:
+                try:
+                    embed = discord.Embed(
+                        description=response,
+                        color=discord.Color.from_rgb(50, 184, 198)
+                    )
+                    embed.set_footer(text="👑 Legend Status")
+                    await message.reply(embed=embed, mention_author=False)
+                except:
+                    pass
+                break
     
     # Chat logic
     user_id = message.author.id
