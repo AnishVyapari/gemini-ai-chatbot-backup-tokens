@@ -44,6 +44,21 @@ CHANGELOG v4.3 - ALL FIXES APPLIED:
 ✅ Works on free tier!
 
 ═══════════════════════════════════════════════════════════════════════════════
+
+DEPLOYMENT GUIDE:
+
+1. Create .env file with:
+   DISCORD_BOT_TOKEN=your_token
+   MISTRAL_API_KEY=your_key
+   HUGGINGFACE_API_KEY=your_key
+
+2. Install dependencies:
+   pip install discord.py httpx python-dotenv
+
+3. Run:
+   python anish_bot_v4.3.py
+
+═══════════════════════════════════════════════════════════════════════════════
 """
 
 import discord
@@ -1867,6 +1882,10 @@ async def slash_ticket(interaction: discord.Interaction, topic: str):
             color=discord.Color.red()
         )
         await interaction.followup.send(embed=embed)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ★ UNIVERSAL SETUP COMMAND
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @bot.tree.command(name="setup", description="🚀 Universal server setup - Auto-creates all channels, roles, and systems")
 @app_commands.checks.has_permissions(administrator=True)
