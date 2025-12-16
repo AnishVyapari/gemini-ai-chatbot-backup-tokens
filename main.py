@@ -1282,6 +1282,45 @@ async def slash_universal_setup(interaction: discord.Interaction):
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+# ===== DELETEALL COMMAND =====
+@bot.tree.command(name="deleteall", description="OWNER ONLY - Remove all members")
+@app_commands.checks.has_permissions(administrator=True)
+async def slash_deleteall(interaction: discord.Interaction):
+    """DANGEROUS: Removes all members from server. OWNER ONLY!"""
+    if interaction.user.id != OWNER_ID:
+        embed = discord.Embed(
+            title="Unauthorized",
+            description="Only bot owner can use this!",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    
+    await interaction.response.defer()
+    
+    try:
+        removed_count = 0
+        failed_count = 0
+        
+        for member in interaction.guild.members:
+            if member.id == interaction.guild.owner.id or member.id == bot.user.id:
+                continue
+            try:
+                await member.kick(reason="Bulk removal via /deleteall")
+                removed_count += 1
+            except:
+                failed_count += 1
+        
+        embed = discord.Embed(
+            title="Deletion Complete",
+            description=f"Removed: {removed_count} members\nFailed: {failed_count}",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed)
+    except Exception as e:
+        embed = discord.Embed(title="Error", description=f"Error: {str(e)[:100]}", color=discord.Color.red())
+        await interaction.followup.send(embed=embed)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ★ BOT LAUNCH
 # ═══════════════════════════════════════════════════════════════════════════════
