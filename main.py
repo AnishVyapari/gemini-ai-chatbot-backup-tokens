@@ -477,7 +477,7 @@ async def on_message(message: discord.Message):
         except:
             pass
         
-        if random.random() < 0.15:
+            if random.random() < 0.15:
             try:
                 compliment = random.choice(ANISH_COMPLIMENTS)
                 embed = discord.Embed(
